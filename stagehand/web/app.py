@@ -75,7 +75,7 @@ def static(filename):
 
 
 @web.get('/')
-@shview('home.tmpl')
+@shview('new/ui.tmpl')
 def home():
     return {}
 

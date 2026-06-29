@@ -1,308 +1,1060 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <meta charset="utf-8" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" />
-    <meta name="mobile-web-app-capable" content="yes">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stagehand</title>
+    <link rel="shortcut icon" href="{{root}}/static/img/favicon.ico">
+    <link rel="stylesheet" href="{{root}}/static/new/css/semantic.min.css.gz">
+    <link rel="stylesheet" href="{{root}}/static/new/css/stagehand.css">
+    <style>
+        body { background: #1b1c1d; color: #e0e0e0; margin: 0; padding: 0; }
+        #app-menu { box-shadow: 0 3px 20px rgba(0,0,0,0.8) !important; }
+        .view { display: none; padding-top: 4.5rem; min-height: 100vh; }
+        .view.active { display: block; }
+        .view-inner { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem; }
 
-    <link rel="stylesheet" type="text/css" href="{{root}}/static/new/css/semantic.min.css.gz">
-    <link rel="stylesheet" type="text/css" href="{{root}}/static/new/css/stagehand.css">
+        /* Show banner grid */
+        #shows-grid .column { padding: 0.5rem !important; cursor: pointer; }
+        #shows-grid .banner-wrap {
+            position: relative; overflow: hidden; border-radius: 4px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+        #shows-grid .banner-wrap:hover { transform: scale(1.02); box-shadow: 0 4px 16px rgba(0,0,0,0.7); }
+        #shows-grid .banner-wrap img { width: 100%; display: block; }
+        #shows-grid .banner-wrap .status-badge {
+            position: absolute; top: 6px; right: 6px;
+            background: rgba(0,0,0,0.75); border-radius: 4px; padding: 2px 6px;
+            font-size: 11px; font-weight: bold; letter-spacing: 0.5px;
+        }
+        #shows-grid .banner-wrap .needed-badge {
+            position: absolute; bottom: 6px; right: 6px;
+            background: rgba(219,40,40,0.9); border-radius: 4px; padding: 2px 7px;
+            font-size: 11px; font-weight: bold; color: white;
+        }
+        #shows-grid .show-name {
+            background: rgba(0,0,0,0.65); color: #eee; font-size: 12px;
+            padding: 4px 8px; text-align: center;
+        }
 
-    <script src="{{root}}/static/new/js/jquery-2.1.3.min.js.gz"></script>
-    <script src="{{root}}/static/new/js/semantic.min.js.gz"></script>
-    <script type='text/javascript' src='{{root}}/static/new/js/utils.coffee'></script>
+        /* Episode status colors */
+        .status-have { color: #21ba45; }
+        .status-need { color: #e03997; }
+        .status-need-forced { color: #e03997; }
+        .status-future { color: #767676; }
+        .status-ignore { color: #767676; }
+
+        /* Notifications */
+        #notif-area { position: fixed; top: 4.2rem; right: 1rem; z-index: 9999; width: 320px; }
+        .notif-item {
+            background: #2d2d2d; border-left: 4px solid #21ba45;
+            border-radius: 4px; padding: 10px 14px; margin-bottom: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.5); animation: notif-in 0.2s ease;
+        }
+        .notif-item.error { border-color: #db2828; }
+        .notif-item.warning { border-color: #f2711c; }
+        .notif-item .notif-title { font-weight: bold; margin-bottom: 3px; }
+        .notif-item .notif-close { float: right; cursor: pointer; opacity: 0.6; margin-left: 8px; }
+        .notif-item .notif-close:hover { opacity: 1; }
+        @keyframes notif-in { from { opacity:0; transform: translateX(20px); } to { opacity:1; transform:none; } }
+
+        /* Episode table */
+        .episode-table { width: 100%; }
+        .episode-table td { padding: 6px 8px; vertical-align: middle; }
+        .episode-table .ep-num { color: #888; width: 3em; text-align: center; }
+        .episode-table .ep-date { color: #888; white-space: nowrap; width: 7em; }
+        .episode-table .ep-status { width: 2.5em; text-align: center; }
+        .episode-table tr:hover { background: rgba(255,255,255,0.05); cursor: pointer; }
+        .season-header {
+            background: rgba(255,255,255,0.08); padding: 8px 14px;
+            font-weight: bold; cursor: pointer; user-select: none;
+            border-radius: 4px; margin: 0.5rem 0 0;
+            display: flex; align-items: center; justify-content: space-between;
+        }
+        .season-header:hover { background: rgba(255,255,255,0.12); }
+        .season-body { overflow: hidden; }
+
+        /* Settings form */
+        .settings-field { margin-bottom: 1rem; }
+        .settings-field label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
+        .settings-field input[type=text], .settings-field select {
+            background: #2d2d2d; border: 1px solid #444; color: #eee;
+            border-radius: 4px; padding: 7px 10px; width: 100%; box-sizing: border-box;
+        }
+        .settings-radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
+        .settings-radio-group label {
+            cursor: pointer; padding: 5px 14px; border-radius: 4px;
+            border: 1px solid #444; background: #2d2d2d; color: #eee;
+            font-size: 13px; transition: all 0.15s;
+        }
+        .settings-radio-group input { display: none; }
+        .settings-radio-group input:checked + label { background: #2185d0; border-color: #2185d0; color: white; }
+
+        /* Downloads */
+        .dl-progress-bar { background: #444; border-radius: 3px; height: 8px; overflow: hidden; min-width: 100px; }
+        .dl-progress-bar .fill { background: #21ba45; height: 100%; transition: width 0.3s; }
+        .week-header { color: #888; font-size: 13px; padding: 12px 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+
+        /* Search results */
+        .search-result-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #333; transition: background 0.1s; }
+        .search-result-item:last-child { border-bottom: none; }
+        .search-result-item:hover { background: rgba(255,255,255,0.07); }
+        .search-result-item.selected { background: rgba(33,133,208,0.2); }
+        .search-result-item .result-name { font-weight: bold; }
+        .search-result-item .result-meta { font-size: 12px; color: #888; margin-top: 2px; }
+
+        /* Dark modal */
+        .ui.modal { background: #2d2d2d; color: #eee; }
+        .ui.modal > .header { background: #232323; color: #eee; border-color: #444; }
+        .ui.modal > .actions { background: #232323; border-color: #444; }
+
+        /* Inverted table */
+        .ui.table { background: transparent; color: #eee; border-color: #333; }
+        .ui.table thead th { background: rgba(255,255,255,0.08); color: #ccc; border-color: #333; }
+        .ui.table td { border-color: #333; }
+        .ui.table tr:hover td { background: rgba(255,255,255,0.04) !important; }
+
+        /* Nav progress */
+        #nav-progress-bar { margin: 0; min-width: 120px; }
+        #nav-progress-bar .bar { min-width: 0 !important; }
+
+        /* Show detail banner */
+        #show-banner-img { width: 100%; max-height: 200px; object-fit: cover;
+                           border-radius: 6px; display: block; margin-bottom: 1rem; }
+        #show-detail-name { font-size: 1.8rem; font-weight: bold; margin-bottom: 0.25rem; }
+        #show-overview { color: #aaa; font-size: 14px; margin-bottom: 1.5rem; line-height: 1.5; }
+
+        /* Filter toggle */
+        .filter-btn {
+            padding: 6px 16px; border-radius: 4px; cursor: pointer;
+            background: transparent; border: 1px solid #555; color: #aaa;
+            font-size: 13px; transition: all 0.15s;
+        }
+        .filter-btn.active { background: #2185d0; border-color: #2185d0; color: white; }
+        .filter-btn:hover { border-color: #777; color: #ccc; }
+
+        @media (max-width: 600px) {
+            #nav-progress, #menu-label-logo, #menu-label-configure { display: none !important; }
+        }
+        @media (max-width: 450px) {
+            #menu-search { display: none; }
+        }
+    </style>
 </head>
-<body id="home" style='background-color: black; color: white; padding:0; margin:0'>
-<div class="ui large menu inverted fixed" style='box-shadow: 0px 5px 15px 0px rgba(0, 0, 0, 0.97)' id='menu'>
-    <div class="menu">
-        <img class="header image item" src="{{root}}/static/new/img/masks.png" style='width: 50px; padding: 0; opacity: 0.3'>
-        <div class="header item" id='menu-label-logo' style='padding-left: 0; padding-right: 2em; opacity: 0.3'>
-               Stagehand
+<body>
+
+<!-- ============================================================ TOP NAV -->
+<div class="ui large inverted fixed menu" id="app-menu" style="background:#1a1a1a">
+    <div class="menu" style="width:100%; flex-wrap:nowrap">
+        <img src="{{root}}/static/new/img/masks.png" class="item header image"
+             style="width:46px; padding:0; opacity:0.25; cursor:pointer" id="nav-logo">
+        <div class="item header" id="menu-label-logo" style="opacity:0.25; padding-left:0; padding-right:1.5em; cursor:pointer">
+            Stagehand
         </div>
-        <a class="item" data-tab-id='tab-home'>
-            <i class="home icon"></i>
+        <a class="item active" data-view="tv" id="nav-tv" href="#/tv">
+            <i class="film icon"></i> TV Shows
         </a>
-        <a class="active item" data-tab-id='tab-tv'>
-            <i class="camera retro icon"></i>
-            <span id='menu-label-tv'>TV Shows</span>
+        <a class="item" data-view="downloads" id="nav-downloads" href="#/downloads">
+            <i class="download icon"></i> <span id="menu-label-downloads">Downloads</span>
         </a>
-        <a class="item" data-tab-id='tab-downloads'>
-            <i class="download icon"></i>
-            <span id='menu-label-downloads'>Downloads</span>
-        </a>
-        <div class="right menu">
-            <div class="ui dropdown item fade">
-                <i class="settings icon"></i>
-                <span id='menu-label-configure'>Configure</span>
-                <i class="icon dropdown"></i>
-                <div class="blue menu">
-                    <a class="item">
-                        <i class="settings icon"></i> Settings
-                    </a>
-                    <a class="item">
-                        <i class="content icon"></i> Logs
-                    </a>
+        <div class="right menu" style="flex-shrink:0">
+            <div class="ui dropdown item" id="nav-configure">
+                <i class="setting icon"></i>
+                <span id="menu-label-configure">Configure</span>
+                <i class="dropdown icon"></i>
+                <div class="menu">
+                    <a class="item" data-view="settings" href="#/settings"><i class="settings icon"></i> Settings</a>
+                    <a class="item" data-view="log" href="#/log"><i class="align justify icon"></i> Log</a>
                 </div>
             </div>
-        </div>
-        <div class='right header item' id='menu-search'>
-            <div class="ui inverted transparent icon input">
-                <input placeholder="Search" type="text">
-                <i class="search icon"></i>
+            <div class="item" id="menu-search">
+                <div class="ui transparent inverted icon input">
+                    <input id="nav-search-input" placeholder="Search shows..." type="text">
+                    <i class="search icon" style="cursor:pointer" id="nav-search-icon"></i>
+                </div>
             </div>
-        </div>
-        <div class="right header item" style='width:150px' id='menu-progress'>
-            <div class="ui teal small progress" style='padding:0; margin:0' data-variation='inverted large'
-                 data-content='Downloading 2 episodes (21.2MB/s)'>
-                <div class="bar">
-                    <div class="progress"></div>
+            <div class="item" id="nav-progress" style="display:none">
+                <div class="ui small teal progress" id="nav-progress-bar">
+                    <div class="bar"><div class="progress"></div></div>
                 </div>
             </div>
         </div>
     </div>
 </div>
 
+<!-- ============================================================ NOTIFICATIONS -->
+<div id="notif-area"></div>
 
-<div style='padding-top: 5rem; width: 90%; margin: 0 auto' class='app-tab' id='tab-downloads'>
-</div>
+<!-- ============================================================ VIEW: TV -->
+<div id="view-tv" class="view active">
 
-<div style='padding-top: 5rem; width: 90%; margin: 0 auto' class='app-tab' id='tab-tv'>
-
-    <div style='display: none' id='tab-tv-page-add' class='app-page'>
-        <div class="ui labeled icon blue button">
-              Go Back
+    <!-- TV Library -->
+    <div id="tv-library" class="view-inner">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:1.5rem; flex-wrap:wrap; gap:0.5rem">
+            <div style="display:flex; gap:6px">
+                <button class="filter-btn active" data-filter="all">All Shows</button>
+                <button class="filter-btn" data-filter="active">Active Only</button>
+            </div>
+            <button class="ui primary button" id="btn-add-show">
+                <i class="add icon"></i> Add TV Show
+            </button>
+        </div>
+        <div class="ui two column doubling grid" id="shows-grid">
+            <div class="column" style="text-align:center; padding:3rem 0">
+                <div class="ui active inline loader"></div>
+            </div>
         </div>
     </div>
-    <div id='tab-tv-page-list' class='app-page'>
-        <div id='scroll-label-letter-container'>
-            <div class='ui label huge black inverted' id='scroll-label-letter' style='display:none'></div>
-        </div>
-        <div id='tab-tv-page-list-buttons'>
-            <div class="ui labeled icon blue button" style='float: right' id='tab-tv-page-add-button'>
-              <i class="add icon"></i>
-              Add TV Show
-            </div>
-            <div class="ui buttons" id='show-filter'>
-              <div class="ui positive button" data-filter='all'>All Shows</div>
-              <div class="or" data-text="or"></div>
-              <div class="ui button" data-filter='active'>Only Active Shows</div>
-            </div>
-        </div>
-        <div style='clear: both; padding-top: 3rem'></div>
 
-        <div class="ui two column doubling centered grid banner-grid" id='shows'>
-            <!--
-            <div class='column'>
-                <div class='ui rounded image'>
-                    <a href='/'><img src='/api/shows/thetvdb:279553/banner'></a>
-                    <a class="ui left yellow corner label">
-                        <i class="pause icon"></i>
-                    </a>
+    <!-- Add Show -->
+    <div id="tv-add" class="view-inner" style="display:none">
+        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1.5rem">
+            <button class="ui button basic inverted" id="btn-back-library">
+                <i class="arrow left icon"></i> Back
+            </button>
+            <h2 style="margin:0">Add TV Series</h2>
+        </div>
+        <div class="ui action input" style="width:100%; max-width:500px; margin-bottom:1rem">
+            <input type="text" id="add-search-input" placeholder="Search by series name...">
+            <button class="ui button primary" id="add-search-btn">Search</button>
+        </div>
+        <div id="add-results-wrap" style="display:none; max-width:600px">
+            <div id="add-results-list" style="background:#2d2d2d; border:1px solid #444; border-radius:4px; margin-bottom:1rem"></div>
+            <button class="ui primary button" id="btn-add-selected" disabled>
+                <i class="add icon"></i> Add Selected Series
+            </button>
+        </div>
+        <div id="add-loading" style="display:none; padding:2rem">
+            <div class="ui active inline loader"></div>
+            <span style="margin-left:1rem; color:#aaa">Searching...</span>
+        </div>
+    </div>
+
+    <!-- Show Detail -->
+    <div id="tv-show-detail" class="view-inner" style="display:none">
+        <div style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem">
+            <button class="ui button basic inverted" id="btn-back-from-show">
+                <i class="arrow left icon"></i> Library
+            </button>
+            <div>
+                <div id="show-detail-name"></div>
+                <div id="show-detail-status" style="font-size:13px; color:#888"></div>
+            </div>
+        </div>
+        <img id="show-banner-img" src="" alt="" style="display:none">
+        <div id="show-overview"></div>
+
+        <div style="display:flex; flex-wrap:wrap; gap:1.5rem; margin-bottom:1rem">
+            <div class="settings-field" style="flex:1; min-width:200px">
+                <label>Quality</label>
+                <div class="settings-radio-group" id="show-quality-group"></div>
+            </div>
+            <div class="settings-field" style="flex:1; min-width:200px">
+                <label>Episode Identifier</label>
+                <div class="settings-radio-group" id="show-identifier-group"></div>
+            </div>
+            <div class="settings-field" style="min-width:150px">
+                <label>Downloads Paused</label>
+                <label style="cursor:pointer; display:flex; align-items:center; gap:8px; padding:5px 0">
+                    <input type="checkbox" id="show-paused-cb" style="width:auto">
+                    <span id="show-paused-label">No</span>
+                </label>
+            </div>
+            <div class="settings-field" style="min-width:150px">
+                <label>Flatten Seasons</label>
+                <label style="cursor:pointer; display:flex; align-items:center; gap:8px; padding:5px 0">
+                    <input type="checkbox" id="show-flat-cb" style="width:auto">
+                    <span id="show-flat-label">No</span>
+                </label>
+            </div>
+        </div>
+
+        <div id="show-advanced-toggle" class="season-header" style="margin-bottom:0.5rem">
+            <span>Advanced Settings</span>
+            <i class="chevron right icon" id="show-adv-icon"></i>
+        </div>
+        <div id="show-advanced" style="display:none; background:rgba(255,255,255,0.04); border-radius:4px; padding:1rem; margin-bottom:1rem">
+            <div style="display:flex; flex-wrap:wrap; gap:1rem">
+                <div class="settings-field" style="flex:1; min-width:180px">
+                    <label>Provider</label>
+                    <div class="settings-radio-group" id="show-provider-group"></div>
+                </div>
+                <div class="settings-field" style="flex:1; min-width:180px">
+                    <label>Directory Name (blank for default)</label>
+                    <input type="text" id="show-path-input">
+                </div>
+                <div class="settings-field" style="flex:1; min-width:180px">
+                    <label>Search String Override</label>
+                    <input type="text" id="show-search-string-input">
+                </div>
+                <div class="settings-field" style="flex:1; min-width:180px">
+                    <label>Language Code</label>
+                    <input type="text" id="show-language-input">
                 </div>
             </div>
-            <div class='column'>
-                <div class='ui rounded image'>
-                    <img src='/api/shows/thetvdb:279553/banner'>
-                    <a class="ui left red corner label">
-                        <i class="pause icon"></i>
-                    </a>
+        </div>
+
+        <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.5rem">
+            <button class="ui button primary" id="btn-show-search-now">
+                <i class="download icon"></i> Download Needed Now
+            </button>
+            <button class="ui button" id="btn-show-refresh">
+                <i class="refresh icon"></i> Refresh Metadata
+            </button>
+            <button class="ui red basic button" id="btn-show-delete">
+                <i class="trash icon"></i> Delete Series
+            </button>
+        </div>
+
+        <h3 style="border-bottom:1px solid #333; padding-bottom:0.5rem; margin-bottom:0.5rem">Episodes</h3>
+        <div id="show-seasons"></div>
+    </div>
+</div>
+
+<!-- ============================================================ VIEW: DOWNLOADS -->
+<div id="view-downloads" class="view">
+    <div class="view-inner">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1rem">
+            <h2 style="margin:0">Downloads</h2>
+            <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap">
+                <div>
+                    Show
+                    <select id="dl-status-select" style="background:#2d2d2d; border:1px solid #444; color:#eee; border-radius:4px; padding:5px 8px; margin:0 4px">
+                        <option value="have">Downloaded</option>
+                        <option value="all">All</option>
+                    </select>
+                    from
+                    <select id="dl-weeks-select" style="background:#2d2d2d; border:1px solid #444; color:#eee; border-radius:4px; padding:5px 8px; margin:0 4px">
+                        <option value="1">this week</option>
+                        <option value="2">the last 2 weeks</option>
+                        <option value="4">the last month</option>
+                        <option value="8">the last 2 months</option>
+                        <option value="24">the last 6 months</option>
+                    </select>
                 </div>
+                <button class="ui primary button" id="btn-check-episodes">
+                    <i class="search icon"></i> Check for New Episodes
+                </button>
             </div>
-            <div class='column'>
-                <div class='ui rounded image' style='position:relative; overflow: hidden'>
-                    <img src='/api/shows/thetvdb:279553/banner'>
-                    <a class="ui left red corner label">
-                        <i class="pause icon"></i>
-                    </a>
-                </div>
+        </div>
+        <div id="downloads-content">
+            <div style="text-align:center; padding:3rem">
+                <div class="ui active inline loader"></div>
             </div>
-            <div class='column'>
-                <div class='ui rounded image' style='position:relative; overflow: hidden'>
-                    <img src='/api/shows/thetvdb:279553/banner'>
-                    <a class="ui left red corner label">
-                        <i class="pause icon"></i>
-                    </a>
-                </div>
-            </div>
-            -->
         </div>
     </div>
 </div>
 
+<!-- ============================================================ VIEW: SETTINGS -->
+<div id="view-settings" class="view">
+    <div class="view-inner" style="max-width:600px">
+        <h2 style="margin-bottom:1.5rem">Settings</h2>
+        <div style="background:#2d2d2d; border-radius:6px; padding:1.5rem; margin-bottom:1rem">
+            <h3 style="margin-top:0">Searcher Configuration</h3>
+            <p style="color:#888; font-size:13px">
+                Settings are currently managed via the config file at
+                <code style="background:#111; padding:2px 5px; border-radius:3px">~/.config/stagehand/config</code>.
+            </p>
+            <p style="color:#888; font-size:13px">To enable Easynews search, append to the config file:</p>
+            <pre style="background:#111; padding:1rem; border-radius:4px; color:#ccc; font-size:12px; overflow-x:auto">searchers.enabled[+] = easynews
+searchers.easynews.username = your_username
+searchers.easynews.password = your_password</pre>
+        </div>
+        <div style="background:#2d2d2d; border-radius:6px; padding:1.5rem">
+            <h3 style="margin-top:0">System</h3>
+            <div style="display:flex; gap:0.75rem; flex-wrap:wrap">
+                <button class="ui button" id="btn-check-all">
+                    <i class="search icon"></i> Check All Shows for New Episodes
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
-<script type='text/javascript'>
+<!-- ============================================================ VIEW: LOG -->
+<div id="view-log" class="view">
+    <div class="view-inner">
+        <h2 style="margin-bottom:1rem">Application Log</h2>
+        <p style="color:#888; font-size:13px">Log streaming is not yet implemented. Check the Docker container output for live logs.</p>
+    </div>
+</div>
+
+<!-- ============================================================ MODAL: CONFIRM DELETE -->
+<div id="modal-delete" class="ui small modal">
+    <div class="header">Delete Series</div>
+    <div class="content">
+        <p>Are you sure you want to delete <strong id="modal-delete-name"></strong> from the database?</p>
+        <p style="color:#888; font-size:13px">No video files will be deleted.</p>
+    </div>
+    <div class="actions">
+        <button class="ui button" id="modal-delete-cancel">Cancel</button>
+        <button class="ui red button" id="modal-delete-confirm">Delete</button>
+    </div>
+</div>
+
+<!-- ============================================================ SCRIPTS -->
+<script src="{{root}}/static/new/js/jquery-2.1.3.min.js.gz"></script>
+<script src="{{root}}/static/new/js/semantic.min.js.gz"></script>
+<script>
 (function() {
-  var getLetterAtOffset, showTVTab;
+'use strict';
 
-  this.stagehand = new Stagehand('{{root}}');
+var ROOT = '{{root}}';
+var INITIAL_ASYNC = {{!json(asyncdata)}};
 
-  $(function() {
-    $('.progress').progress({
-      percent: 42,
-      label: 42
-    }).popup({
-      on: 'hover'
-    });
-    $('.ui.dropdown').dropdown({
-      on: 'click',
-      duration: 0
-    });
-    $('.menu a.item').click(function() {
-      var tabId;
-      tabId = $(this).data('tab-id');
-      if (tabId) {
-        $('.app-tab').hide().filter('#' + tabId).show();
-      }
-      if (!$(this).hasClass('dropdown')) {
-        return $(this).addClass('active').closest('.ui.menu').find('.item').not($(this)).removeClass('active');
-      }
-    });
-    return $('#menu-search i').click(function() {
-      return $('#menu-search input').focus();
-    });
-  });
+// ---------------------------------------------------------------- Stagehand class
+function Stagehand(root) {
+    this.root = root;
+    this.jobs = {};
+    this.timer = null;
+    this.interval = 0;
+    this.min_interval = 5000;
+    this.max_interval = 10000;
+    this.handlers = {};
+    this.poll(this.min_interval);
+}
 
-  getLetterAtOffset = function(offset, delta) {
-    var elem, i, img, j;
-    for (i = j = 1; j <= 10; i = ++j) {
-      elem = document.elementFromPoint(100, offset);
-      img = $(elem).closest('img.banner');
-      if (img.length > 0) {
-        return img.data('letter');
-      } else {
-        offset += delta;
-      }
+Stagehand.prototype.bind = function(ntype, f) {
+    if (!this.handlers[ntype]) this.handlers[ntype] = [];
+    this.handlers[ntype].push(f);
+};
+
+Stagehand.prototype.api = function(url, data, type) {
+    var self = this;
+    data = data || {};
+    type = (type || 'GET').toUpperCase();
+    var dfd = $.Deferred();
+    var xhr = $.ajax({ url: self.root + url, data: data, type: type })
+        .done(function(response) {
+            if (response.jobid == null) {
+                response.xhr = xhr;
+                dfd.resolve(response);
+                return;
+            }
+            self.jobs[response.jobid] = [dfd, xhr];
+            if (response.pending) dfd.notify(response.jobid);
+            if (response.pending && self.interval > response.interval) {
+                self.poll(response.interval);
+            } else if (self.interval > 1000) {
+                self.poll(1000);
+            }
+            self.handle_response(response);
+        })
+        .fail(function(jqxhr) {
+            dfd.reject({ message: 'HTTP ' + jqxhr.status + ': ' + jqxhr.statusText, xhr: jqxhr });
+        });
+    return dfd.promise();
+};
+
+Stagehand.prototype.handle_response = function(response) {
+    var self = this;
+    var jobs = response.jobs || [];
+    var notifications = response.notifications || [];
+    var i, j, k, job, n;
+    for (i = 0; i < jobs.length; i++) {
+        job = jobs[i];
+        if (self.jobs[job.id]) {
+            var dfd = self.jobs[job.id][0], xhr = self.jobs[job.id][1];
+            delete self.jobs[job.id];
+            if (job.error) { job.error.xhr = xhr; dfd.reject(job.error); }
+            else { dfd.resolve(job.result); }
+        }
     }
-  };
-
-  $(function() {
-    var $window, lastTop, offset, timer;
-    timer = 0;
-    offset = $('#menu').height() + 10;
-    $window = $(window);
-    lastTop = $window.scrollTop();
-    return $window.scroll(function(event) {
-      var label, letter, top;
-      top = $window.scrollTop();
-      if (top > lastTop) {
-        letter = getLetterAtOffset($window.height() - 10, -50);
-      } else {
-        letter = getLetterAtOffset(offset, 50);
-      }
-      lastTop = top;
-      label = $('#scroll-label-letter');
-      label.text(letter);
-      if (!label.transition('is visible')) {
-        label.transition('fade');
-      }
-      if (timer) {
-        cancel(timer);
-      }
-      return timer = defer(1500, function() {
-        if (label.transition('is visible')) {
-          return label.transition('fade');
+    for (j = 0; j < notifications.length; j++) {
+        n = notifications[j];
+        if (self.handlers[n._ntype]) {
+            for (k = 0; k < self.handlers[n._ntype].length; k++) {
+                self.handlers[n._ntype][k](n);
+            }
         }
-      });
-    });
-  });
-
-  $(function() {
-    $('#show-filter .button').click(function() {
-      var $button, filter;
-      $button = $(this);
-      $('#show-filter .button').not($button).removeClass('positive');
-      $button.addClass('positive');
-      filter = $button.data('filter');
-      localStorage.setItem('showsFilter', filter);
-      return $('#shows .column').each(function() {
-        if (!$(this).data('active')) {
-          if (filter === 'active') {
-            return $(this).hide();
-          } else {
-            return $(this).show();
-          }
+        if (n._ntype === 'alert') {
+            var ntype = n.type === 'error' ? 'error' : (n.type === 'warning' ? 'warning' : 'info');
+            notify(n.title || '', n.text || '', ntype);
         }
-      });
-    });
-    $('#tab-tv-page-add-button').click(function() {
-      $('#tab-tv .app-page').hide().filter('#tab-tv-page-add').show();
-      return history.pushState({
-        foo: 42
-      }, "Page 2", "add");
-    });
-    $('#tab-tv-page-add .button').click(function() {
-      return $('#tab-tv .app-page').hide().filter('#tab-tv-page-list').show();
-    });
-    $(window).bind('popstate', function(event) {
-      return showTVTab();
-    });
-    return showTVTab();
-  });
-
-  showTVTab = function() {
-    var showsFilter;
-    showsFilter = localStorage.getItem('showsFilter') || 'all';
-    $("#show-filter .button[data-filter='" + showsFilter + "']").click();
-    $('.app-tab').hide().filter('#tab-tv').show();
-    if ($('#shows .column').size() > 0) {
-      return;
     }
-    return stagehand.api("/api/shows").done((function(_this) {
-      return function(arg) {
-        var $a, $cell, $grid, $img, $link, $wrapper, j, label, len, results, show, shows;
-        shows = arg.shows;
-        $grid = $('#shows');
-        $grid.empty();
-        results = [];
-        for (j = 0, len = shows.length; j < len; j++) {
-          show = shows[j];
-          $img = $('<img>').addClass('banner').attr({
-            src: "/api/shows/" + show.id + "/banner"
-          });
-          $img.data('letter', show.order);
-          $link = $('<a>').attr({
-            href: '/tv/' + show.id
-          });
-          $link.append($img);
-          $wrapper = $('<div>').addClass('ui rounded image');
-          $wrapper.append($link);
-          if (show.paused) {
-            label = {
-              color: 'yellow',
-              icon: 'black pause'
-            };
-          } else if (show.status === {{Series.STATUS_ENDED}}) {
-            label = {
-              color: 'yellow',
-              icon: 'black stop'
-            };
-          } else {
-            label = null;
-          }
-          if (label) {
-            $a = $('<a>').addClass("ui right corner " + label.color + " label");
-            $a.append($('<i>').addClass(label.icon + " icon"));
-            $wrapper.append($a);
-          }
-          $cell = $('<div>').addClass('column');
-          $cell.append($wrapper);
-          $cell.data('active', label ? false : true);
-          if (showsFilter === 'active' && label) {
-            $cell.hide();
-          }
-          results.push($grid.append($cell));
-        }
-        return results;
-      };
-    })(this));
-  };
+};
 
-}).call(this);
+Stagehand.prototype.poll = function(interval) {
+    var self = this;
+    if (self.timer) {
+        if (interval === self.interval) return;
+        clearInterval(self.timer);
+        self.timer = null;
+    }
+    self.interval = Math.min(interval != null ? interval : self.interval, self.max_interval);
+    self.timer = setInterval(function() {
+        var jobIds = Object.keys(self.jobs);
+        var data = jobIds.length > 0 ? { jobs: jobIds.join(',') } : null;
+        $.ajax({ url: self.root + '/api/jobs', data: data, timeout: self.interval })
+            .done(function(r) {
+                self.handle_response(r);
+                if (Object.keys(self.jobs).length === 0 && (r.notifications || []).length === 0) {
+                    if (self.interval < self.max_interval) self.poll(self.interval * 2);
+                } else if (self.interval > self.min_interval) {
+                    self.poll(self.min_interval);
+                }
+            })
+            .fail(function() { self.poll(self.max_interval); });
+    }, self.interval);
+};
+
+// ---------------------------------------------------------------- Notifications
+function notify(title, text, type) {
+    var $area = $('#notif-area');
+    var cls = type === 'error' ? 'error' : (type === 'warning' ? 'warning' : '');
+    var $n = $('<div>').addClass('notif-item ' + cls);
+    var $close = $('<span>').addClass('notif-close').text('×');
+    $n.append($close);
+    if (title) $n.append($('<div>').addClass('notif-title').text(title));
+    if (text) $n.append($('<div>').text(text));
+    $close.on('click', function() { $n.fadeOut(200, function() { $n.remove(); }); });
+    $area.append($n);
+    setTimeout(function() { $n.fadeOut(400, function() { $n.remove(); }); }, 8000);
+}
+
+// ---------------------------------------------------------------- Router
+var stagehand;
+var libraryLoaded = false;
+var selectedSearchResult = null;
+
+function navigate(path) {
+    window.location.hash = path;
+}
+
+function route() {
+    var hash = window.location.hash.slice(1) || '/tv';
+    if (hash.charAt(0) !== '/') hash = '/' + hash;
+    var parts = hash.replace(/^\//, '').split('/');
+    var view = parts[0] || 'tv';
+
+    if (view === 'tv') {
+        var sub = parts[1] || '';
+        showView('tv');
+        if (sub === 'add') {
+            showTvPage('add');
+        } else if (sub && sub !== 'library') {
+            var id = parts.slice(1).join('/');
+            loadShowDetail(id);
+        } else {
+            showTvPage('library');
+        }
+    } else if (view === 'downloads') {
+        showView('downloads');
+        loadDownloads();
+    } else if (view === 'settings') {
+        showView('settings');
+    } else if (view === 'log') {
+        showView('log');
+    } else {
+        showView('tv');
+        showTvPage('library');
+    }
+}
+
+function showView(view) {
+    $('.view').removeClass('active');
+    $('#view-' + view).addClass('active');
+    $('a.item[data-view]').removeClass('active');
+    $('a.item[data-view="' + view + '"]').addClass('active');
+    if (view === 'settings' || view === 'log') {
+        $('#nav-configure').addClass('active');
+    } else {
+        $('#nav-configure').removeClass('active');
+    }
+}
+
+function showTvPage(page) {
+    $('#tv-library, #tv-add, #tv-show-detail').hide();
+    if (page === 'library') {
+        $('#tv-library').show();
+        loadLibrary();
+    } else if (page === 'add') {
+        $('#tv-add').show();
+        setTimeout(function() { $('#add-search-input').focus(); }, 50);
+    } else if (page === 'show') {
+        $('#tv-show-detail').show();
+    }
+}
+
+// ---------------------------------------------------------------- TV Library
+function loadLibrary() {
+    if (libraryLoaded) return;
+    var savedFilter = localStorage.getItem('showsFilter') || 'all';
+    setFilter(savedFilter);
+
+    $.get(ROOT + '/api/shows', function(data) {
+        renderLibrary(data.shows || []);
+    }).fail(function() {
+        notify('Error', 'Failed to load TV library.', 'error');
+    });
+}
+
+function renderLibrary(shows) {
+    var $grid = $('#shows-grid').empty();
+    if (shows.length === 0) {
+        $grid.append('<div class="column" style="text-align:center; color:#888; padding:3rem 0"><a href="#/tv/add" style="color:#2185d0">Add your first TV series!</a></div>');
+        libraryLoaded = true;
+        return;
+    }
+
+    var filter = localStorage.getItem('showsFilter') || 'all';
+    for (var i = 0; i < shows.length; i++) {
+        var show = shows[i];
+        var isActive = (show.status === 'running' && !show.paused);
+        var $col = $('<div>').addClass('column').attr('data-show-id', show.id).attr('data-active', String(isActive));
+
+        var $wrap = $('<div>').addClass('banner-wrap');
+        var $img = $('<img>').attr('alt', show.name);
+        $img.attr('src', ROOT + '/api/shows/' + encodeURIComponent(show.id) + '/banner');
+        (function($i) {
+            $i.on('error', function() { $(this).hide(); });
+        })($img);
+        $wrap.append($img);
+
+        if (show.paused) {
+            $wrap.append($('<span>').addClass('status-badge').css('color', '#f2711c').text('PAUSED'));
+        } else if (show.status === 'ended') {
+            $wrap.append($('<span>').addClass('status-badge').css('color', '#767676').text('ENDED'));
+        } else if (show.status === 'suspended') {
+            $wrap.append($('<span>').addClass('status-badge').css('color', '#f2711c').text('SUSPENDED'));
+        }
+        if (show.needed > 0) {
+            $wrap.append($('<span>').addClass('needed-badge').text(show.needed + ' needed'));
+        }
+        $wrap.append($('<div>').addClass('show-name').text(show.name));
+        $col.append($wrap);
+
+        (function(showId) {
+            $col.on('click', function() { navigate('/tv/' + showId); });
+        })(show.id);
+
+        if (filter === 'active' && !isActive) $col.hide();
+        $grid.append($col);
+    }
+    libraryLoaded = true;
+}
+
+function setFilter(filter) {
+    localStorage.setItem('showsFilter', filter);
+    $('.filter-btn').removeClass('active');
+    $('.filter-btn[data-filter="' + filter + '"]').addClass('active');
+    if (libraryLoaded) {
+        $('#shows-grid .column').each(function() {
+            var isActive = $(this).attr('data-active') === 'true';
+            $(this).toggle(filter !== 'active' || isActive);
+        });
+    }
+}
+
+// ---------------------------------------------------------------- Add Show
+function initAddShow() {
+    $('#add-search-input').on('keydown', function(e) {
+        if (e.keyCode === 13) $('#add-search-btn').click();
+    });
+
+    $('#add-search-btn').on('click', function() {
+        var name = $('#add-search-input').val().trim();
+        if (!name) return;
+        selectedSearchResult = null;
+        $('#btn-add-selected').prop('disabled', true);
+        $('#add-results-wrap').hide();
+        $('#add-loading').show();
+
+        stagehand.api('/api/shows/search', { name: name })
+            .done(function(data) {
+                $('#add-loading').hide();
+                renderSearchResults(data.results || [], name);
+            })
+            .fail(function(err) {
+                $('#add-loading').hide();
+                notify('Search Failed', err.message, 'error');
+            });
+    });
+
+    $('#btn-add-selected').on('click', function() {
+        if (!selectedSearchResult) return;
+        var id = selectedSearchResult.id;
+        $(this).prop('disabled', true);
+        stagehand.api('/api/shows/' + encodeURIComponent(id), {}, 'PUT')
+            .done(function() {
+                libraryLoaded = false;
+                navigate('/tv/' + id);
+            })
+            .fail(function(err) {
+                $('#btn-add-selected').prop('disabled', false);
+                notify('Add Failed', err.message, 'error');
+            });
+    });
+}
+
+function renderSearchResults(results, query) {
+    var $list = $('#add-results-list').empty();
+    if (results.length === 0) {
+        $list.append($('<div>').css({ padding: '1rem', color: '#888' }).text('No results found for "' + query + '"'));
+        $('#add-results-wrap').show();
+        return;
+    }
+    for (var i = 0; i < results.length; i++) {
+        var r = results[i];
+        var $item = $('<div>').addClass('search-result-item');
+        var year = r.started ? String(r.started).substring(0, 4) : '?';
+        $item.append($('<div>').addClass('result-name').text(r.name));
+        var metaText = year + ' • ' + r.provider;
+        if (r.overview) metaText += ' • ' + r.overview.substring(0, 100) + '...';
+        $item.append($('<div>').addClass('result-meta').text(metaText));
+        (function(result) {
+            $item.on('click', function() {
+                $('.search-result-item').removeClass('selected');
+                $(this).addClass('selected');
+                selectedSearchResult = result;
+                $('#btn-add-selected').prop('disabled', false);
+            });
+        })(r);
+        $list.append($item);
+    }
+    $('#add-results-wrap').show();
+}
+
+// ---------------------------------------------------------------- Show Detail
+function loadShowDetail(id) {
+    showTvPage('show');
+    $('#show-seasons').html('<div style="text-align:center; padding:2rem"><div class="ui active inline loader"></div></div>');
+    $('#show-banner-img').hide();
+    $('#show-detail-name').text('Loading...');
+    $('#show-overview').text('');
+
+    $.get(ROOT + '/api/shows/' + encodeURIComponent(id) + '/detail', function(show) {
+        renderShowDetail(show);
+    }).fail(function() {
+        notify('Error', 'Failed to load show details.', 'error');
+        navigate('/tv');
+    });
+}
+
+function renderShowDetail(show) {
+    $('#show-detail-name').text(show.name);
+
+    var statusLabels = { running: 'Running', ended: 'Ended', suspended: 'Suspended', paused: 'Paused', unknown: '' };
+    $('#show-detail-status').text(show.paused ? 'Paused' : (statusLabels[show.run_status] || ''));
+    $('#show-overview').text(show.overview || '');
+
+    var $img = $('#show-banner-img');
+    $img.attr('src', ROOT + '/api/shows/' + encodeURIComponent(show.id) + '/banner')
+        .off('error').on('error', function() { $(this).hide(); }).show();
+
+    // Quality radios
+    var $qg = $('#show-quality-group').empty();
+    (show.quality_options || []).forEach(function(q) {
+        var uid = 'q-' + q.replace(/\s/g,'_');
+        $qg.append($('<input>').attr({ type:'radio', name:'show-quality', id:uid, value:q }).prop('checked', q === show.quality));
+        $qg.append($('<label>').attr('for', uid).text(q));
+    });
+
+    // Identifier radios
+    var identLabels = { epcode: 'Episode Code', date: 'Air Date' };
+    var $ig = $('#show-identifier-group').empty();
+    (show.identifier_options || []).forEach(function(ident) {
+        var uid = 'ident-' + ident;
+        $ig.append($('<input>').attr({ type:'radio', name:'show-identifier', id:uid, value:ident }).prop('checked', ident === show.identifier));
+        $ig.append($('<label>').attr('for', uid).text(identLabels[ident] || ident));
+    });
+
+    $('#show-paused-cb').prop('checked', show.paused);
+    $('#show-paused-label').text(show.paused ? 'Yes' : 'No');
+    $('#show-flat-cb').prop('checked', show.flat);
+    $('#show-flat-label').text(show.flat ? 'Yes' : 'No');
+    $('#show-path-input').val(show.path || '');
+    $('#show-search-string-input').val(show.search_string || '');
+    $('#show-language-input').val(show.language || '');
+
+    // Provider radios
+    var $pg = $('#show-provider-group').empty();
+    (show.providers || []).forEach(function(p) {
+        var uid = 'prov-' + p.name;
+        $pg.append($('<input>').attr({ type:'radio', name:'show-provider', id:uid, value:p.name }).prop('checked', p.name === show.provider));
+        $pg.append($('<label>').attr('for', uid).text(p.label));
+    });
+
+    // Save settings on any change
+    $('#tv-show-detail').off('change.settings').on('change.settings',
+        'input[name="show-quality"], input[name="show-identifier"], #show-paused-cb, #show-flat-cb',
+        function() {
+            if (this.id === 'show-paused-cb') $('#show-paused-label').text(this.checked ? 'Yes' : 'No');
+            if (this.id === 'show-flat-cb') $('#show-flat-label').text(this.checked ? 'Yes' : 'No');
+            saveShowSettings(show.id);
+        });
+    $('#tv-show-detail').off('change.advsettings').on('change.advsettings',
+        '#show-path-input, #show-search-string-input, #show-language-input',
+        function() { saveShowSettings(show.id); });
+    $('#tv-show-detail').off('change.provider').on('change.provider', 'input[name="show-provider"]', function() {
+        stagehand.api('/api/shows/' + encodeURIComponent(show.id) + '/provider', { provider: this.value }, 'POST')
+            .done(function() { loadShowDetail(show.id); })
+            .fail(function(err) { notify('Provider Change Failed', err.message, 'error'); });
+    });
+
+    // Delete button
+    $('#btn-show-delete').off('click').on('click', function() {
+        $('#modal-delete-name').text(show.name);
+        $('#modal-delete-confirm').off('click').on('click', function() {
+            $('#modal-delete').modal('hide');
+            stagehand.api('/api/shows/' + encodeURIComponent(show.id), {}, 'DELETE')
+                .done(function() { libraryLoaded = false; navigate('/tv'); })
+                .fail(function(err) { notify('Delete Failed', err.message, 'error'); });
+        });
+        $('#modal-delete').modal('show');
+    });
+
+    // Refresh button
+    $('#btn-show-refresh').off('click').on('click', function() {
+        var $b = $(this).prop('disabled', true).text('Refreshing...');
+        stagehand.api('/api/shows/' + encodeURIComponent(show.id) + '/refresh', {}, 'POST')
+            .always(function() { $b.prop('disabled', false).html('<i class="refresh icon"></i> Refresh Metadata'); })
+            .done(function() { loadShowDetail(show.id); notify('Refreshed', show.name + ' updated.', 'info'); })
+            .fail(function(err) { notify('Refresh Failed', err.message, 'error'); });
+    });
+
+    // Download needed button
+    $('#btn-show-search-now').off('click').on('click', function() {
+        var $b = $(this).prop('disabled', true);
+        stagehand.api('/api/shows/check', { id: show.id })
+            .always(function() { $b.prop('disabled', false); })
+            .done(function(r) { notify('Search Done', 'Need: ' + (r.need||0) + ', Found: ' + (r.found||0), 'info'); })
+            .fail(function(err) { notify('Search Failed', err.message, 'error'); });
+    });
+
+    renderSeasons(show.seasons || [], show.id);
+}
+
+function saveShowSettings(showId) {
+    var settings = {
+        quality: $('input[name="show-quality"]:checked').val() || '',
+        identifier: $('input[name="show-identifier"]:checked').val() || '',
+        paused: $('#show-paused-cb').is(':checked') ? 'true' : 'false',
+        flat: $('#show-flat-cb').is(':checked') ? 'true' : 'false',
+        path: $('#show-path-input').val(),
+        search_string: $('#show-search-string-input').val(),
+        language: $('#show-language-input').val()
+    };
+    stagehand.api('/api/shows/' + encodeURIComponent(showId) + '/settings', settings, 'POST')
+        .fail(function(err) { notify('Save Failed', err.message, 'error'); });
+}
+
+function renderSeasons(seasons, showId) {
+    var $c = $('#show-seasons').empty();
+    if (!seasons.length) { $c.html('<p style="color:#888">No episodes found.</p>'); return; }
+
+    for (var i = 0; i < seasons.length; i++) {
+        var season = seasons[i];
+        var label = season.number === 0 ? 'Specials' : 'Season ' + season.number;
+        var haveCount = 0;
+        for (var x = 0; x < season.episodes.length; x++) {
+            if (season.episodes[x].status === 'have') haveCount++;
+        }
+        var $hdr = $('<div>').addClass('season-header');
+        $hdr.append($('<span>').html(label + ' <span style="color:#888;font-weight:normal;font-size:13px">(' + haveCount + '/' + season.episodes.length + ' downloaded)</span>'));
+        var $chevron = $('<i>').addClass('chevron down icon season-icon');
+        $hdr.append($chevron);
+
+        var $body = $('<div>').addClass('season-body');
+        var $table = $('<table>').addClass('episode-table');
+        for (var j = 0; j < season.episodes.length; j++) {
+            var ep = season.episodes[j];
+            var $tr = $('<tr>').attr('data-code', ep.code);
+            $tr.append($('<td>').addClass('ep-num').text(ep.number));
+            $tr.append($('<td>').text(ep.name || '(TBA)'));
+            $tr.append($('<td>').addClass('ep-date').text(ep.airdate || 'TBA'));
+            var $dot = $('<span>').addClass('status-' + ep.status).attr('title', ep.status_title).html('&#9679;');
+            $tr.append($('<td>').addClass('ep-status').append($dot));
+            (function(code, name) {
+                $tr.on('click', function() {
+                    $.get(ROOT + '/api/shows/' + encodeURIComponent(showId) + '/' + code + '/overview', function(d) {
+                        if (d.overview) notify(name || code, d.overview, 'info');
+                    });
+                });
+            })(ep.code, ep.name);
+            $table.append($tr);
+        }
+        $body.append($table);
+
+        (function($b, $h, $ch) {
+            $h.on('click', function() {
+                if ($b.is(':visible')) {
+                    $b.slideUp(150); $ch.removeClass('down').addClass('right');
+                } else {
+                    $b.slideDown(150); $ch.removeClass('right').addClass('down');
+                }
+            });
+        })($body, $hdr, $chevron);
+
+        if (i > 0) { $body.hide(); $chevron.removeClass('down').addClass('right'); }
+        $c.append($hdr).append($body);
+    }
+}
+
+// ---------------------------------------------------------------- Downloads
+function loadDownloads() {
+    var weeks = $('#dl-weeks-select').val() || '1';
+    var status = $('#dl-status-select').val() || 'have';
+    $('#downloads-content').html('<div style="text-align:center;padding:3rem"><div class="ui active inline loader"></div></div>');
+    $.get(ROOT + '/api/downloads', { weeks: weeks, status: status }, function(data) {
+        renderDownloads(data);
+    }).fail(function() { notify('Error', 'Failed to load downloads.', 'error'); });
+}
+
+var WEEK_LABELS = ['This Week', 'Last Week', '2 Weeks Ago', '3 Weeks Ago', '4 Weeks Ago', '5 Weeks Ago', '6 Weeks Ago', '7 Weeks Ago'];
+function weekLabel(w) {
+    if (w === null || w === undefined) return 'Unknown Air Date';
+    return w < WEEK_LABELS.length ? WEEK_LABELS[w] : w + ' Weeks Ago';
+}
+
+function renderDownloads(data) {
+    var $c = $('#downloads-content').empty();
+    var queue = data.queue || [], episodes = data.episodes || [];
+
+    if (!queue.length && !episodes.length) {
+        $c.html('<div style="text-align:center;padding:3rem;color:#888">No episodes match the selected criteria.</div>');
+        return;
+    }
+
+    if (queue.length) {
+        $c.append($('<div>').addClass('week-header').text('Queued Downloads'));
+        var $qt = $('<table>').addClass('ui table');
+        $qt.append('<thead><tr><th>Series</th><th>#</th><th>Episode</th><th>Date</th><th>Progress</th></tr></thead>');
+        var $qb = $('<tbody>');
+        queue.forEach(function(q) {
+            var $tr = $('<tr>');
+            $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + q.show_id).css('color','#2185d0').text(q.show_name)));
+            $tr.append($('<td>').text(q.season + 'x' + q.number));
+            $tr.append($('<td>').text(q.name));
+            $tr.append($('<td>').css('white-space','nowrap').text(q.airdate || 'TBA'));
+            var $prog;
+            if (q.progress) {
+                var barId = 'dlprog-' + q.show_id.replace(/[^a-zA-Z0-9]/g,'_') + '_' + q.code;
+                $prog = $('<div>');
+                $prog.append($('<div>').addClass('dl-progress-bar').attr('id', barId)
+                    .append($('<div>').addClass('fill').css('width', q.progress.percentage + '%')));
+                $prog.append($('<div>').css({fontSize:'11px',color:'#aaa',marginTop:'2px'})
+                    .text(q.progress.current_mb + '/' + q.progress.total_mb + ' MB @ ' + q.progress.speed_kb + ' KB/s'));
+            } else {
+                $prog = $('<span>').css({color:'#888',fontSize:'12px'}).text('Queued');
+            }
+            $tr.append($('<td>').append($prog));
+            $qb.append($tr);
+        });
+        $qt.append($qb);
+        $c.append($qt);
+    }
+
+    if (episodes.length) {
+        var lastWeek = undefined, $et = null;
+        episodes.forEach(function(ep) {
+            if (ep.week !== lastWeek) {
+                lastWeek = ep.week;
+                $c.append($('<div>').addClass('week-header').text(weekLabel(ep.week)));
+                $et = $('<table>').addClass('ui table').css('margin-bottom','1rem');
+                $et.append('<thead><tr><th>Series</th><th>#</th><th>Episode</th><th>Date</th><th>Status</th></tr></thead>');
+                $et.append('<tbody>');
+                $c.append($et);
+            }
+            var $tr = $('<tr>');
+            $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + ep.show_id).css('color','#2185d0').text(ep.show_name)));
+            $tr.append($('<td>').text(ep.season + 'x' + ep.number));
+            $tr.append($('<td>').text(ep.name));
+            $tr.append($('<td>').css('white-space','nowrap').text(ep.airdate || 'TBA'));
+            $tr.append($('<td>').append($('<span>').addClass('status-' + ep.status).attr('title', ep.status_title).html('&#9679; ' + ep.status_title)));
+            $et.find('tbody').append($tr);
+        });
+    }
+}
+
+// ---------------------------------------------------------------- Download progress update
+function onDlProgress(data) {
+    var queue = data.queue || [];
+    if (!queue.length) { $('#nav-progress').hide(); return; }
+    var first = queue[0], prog = first[2];
+    if (prog) {
+        $('#nav-progress').show();
+        try { $('#nav-progress-bar').progress({ percent: prog[0] }); } catch(e) {}
+    }
+    queue.forEach(function(item) {
+        var showid = item[0], code = item[1], p = item[2];
+        if (p) {
+            var barId = '#dlprog-' + showid.replace(/[^a-zA-Z0-9]/g,'_') + '_' + code;
+            $(barId).find('.fill').css('width', p[0] + '%');
+        }
+    });
+}
+
+// ---------------------------------------------------------------- Init
+$(document).ready(function() {
+    stagehand = new Stagehand(ROOT);
+    stagehand.handle_response(INITIAL_ASYNC);
+    stagehand.bind('dlprogress', onDlProgress);
+
+    // Nav item clicks (prevent default, use hash nav)
+    $('a.item[data-view]').on('click', function(e) {
+        e.preventDefault();
+        navigate('/' + $(this).attr('data-view'));
+    });
+    $('#nav-logo, #menu-label-logo').on('click', function() { navigate('/tv'); });
+
+    // Configure dropdown init
+    $('#nav-configure').dropdown({ on: 'click', duration: 0 });
+
+    // Filter buttons
+    $('.filter-btn').on('click', function() { setFilter($(this).attr('data-filter')); });
+
+    // Add show button
+    $('#btn-add-show').on('click', function() { navigate('/tv/add'); });
+    $('#btn-back-library').on('click', function() { navigate('/tv'); });
+    $('#btn-back-from-show').on('click', function() { navigate('/tv'); });
+
+    // Downloads controls
+    $('#dl-status-select, #dl-weeks-select').on('change', loadDownloads);
+    $('#btn-check-episodes, #btn-check-all').on('click', function() {
+        var $b = $(this).prop('disabled', true);
+        stagehand.api('/api/shows/check')
+            .always(function() { $b.prop('disabled', false); })
+            .done(function(r) { notify('Check Complete', 'Need: ' + (r.need||0) + ', Found: ' + (r.found||0), 'info'); })
+            .fail(function(err) { notify('Error', err.message, 'error'); });
+    });
+
+    // Advanced settings toggle
+    $('#show-advanced-toggle').on('click', function() {
+        var $adv = $('#show-advanced'), $icon = $('#show-adv-icon');
+        if ($adv.is(':visible')) {
+            $adv.slideUp(200); $icon.removeClass('down').addClass('right');
+        } else {
+            $adv.slideDown(200); $icon.removeClass('right').addClass('down');
+        }
+    });
+
+    // Modal cancel
+    $('#modal-delete-cancel').on('click', function() { $('#modal-delete').modal('hide'); });
+
+    // Nav search shortcut
+    $('#nav-search-icon').on('click', function() { $('#nav-search-input').focus(); });
+    $('#nav-search-input').on('keydown', function(e) {
+        if (e.keyCode === 13) {
+            var q = $(this).val().trim();
+            if (q) {
+                $(this).val('');
+                navigate('/tv/add');
+                setTimeout(function() {
+                    $('#add-search-input').val(q);
+                    $('#add-search-btn').click();
+                }, 100);
+            }
+        }
+    });
+
+    initAddShow();
+    window.addEventListener('hashchange', route);
+    route();
+});
+
+})();
 </script>
-
 </body>
-
 </html>

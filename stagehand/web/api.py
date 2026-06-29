@@ -4,11 +4,13 @@ import mimetypes
 import time
 import logging
 import asyncio
+from datetime import datetime, timedelta
 
 from . import server as web
 from .asyncweb import asyncweb, webcoroutine
 from ..utils import episode_status_icon_info
-from ..tvdb import Episode
+from ..tvdb import Episode, Series
+from ..toolbox.config import get_type
 
 log = logging.getLogger('stagehand.web.app')
 
@@ -219,3 +221,146 @@ def shutdown():
 @web.get('/api/pid')
 def pid():
     return {'pid': os.getpid()}
+
+
+@web.get('/api/shows')
+def shows_list():
+    manager = web.request['stagehand.manager']
+    shows = []
+    for series in sorted(manager.tvdb.series, key=lambda s: s.name.lower()):
+        needed = sum(1 for ep in series.episodes if ep.ready)
+        if series.cfg.paused:
+            run_status = 'paused'
+        elif series.status == Series.STATUS_RUNNING:
+            run_status = 'running'
+        elif series.status == Series.STATUS_ENDED:
+            run_status = 'ended'
+        elif series.status == Series.STATUS_SUSPENDED:
+            run_status = 'suspended'
+        else:
+            run_status = 'unknown'
+        shows.append({
+            'id': series.id,
+            'name': series.name,
+            'status': run_status,
+            'paused': series.cfg.paused,
+            'needed': needed,
+        })
+    return {'shows': shows}
+
+
+@web.get('/api/shows/<id>/detail')
+def show_detail(id):
+    manager = web.request['stagehand.manager']
+    series = get_series_from_request(id)
+    seasons = []
+    for season in sorted(series.seasons, key=lambda s: -s.number):
+        eps = []
+        for ep in season.episodes:
+            icon, title = episode_status_icon_info(ep)
+            eps.append({
+                'code': ep.code,
+                'number': ep.number,
+                'name': ep.name or '',
+                'airdate': ep.airdate.strftime('%Y-%m-%d') if ep.airdate else None,
+                'status': icon,
+                'status_title': title,
+            })
+        seasons.append({'number': season.number, 'episodes': eps})
+
+    if series.cfg.paused:
+        run_status = 'paused'
+    elif series.status == Series.STATUS_RUNNING:
+        run_status = 'running'
+    elif series.status == Series.STATUS_ENDED:
+        run_status = 'ended'
+    elif series.status == Series.STATUS_SUSPENDED:
+        run_status = 'suspended'
+    else:
+        run_status = 'unknown'
+
+    providers = [
+        {'name': p.NAME, 'label': p.NAME_PRINTABLE}
+        for p in sorted(manager.tvdb.providers.values(), key=lambda p: p.NAME)
+    ]
+    return {
+        'id': series.id,
+        'name': series.name,
+        'run_status': run_status,
+        'paused': series.cfg.paused,
+        'overview': series.overview or '',
+        'quality': series.cfg.quality,
+        'flat': series.cfg.flat,
+        'identifier': series.cfg.identifier,
+        'path': series.cfg.path or '',
+        'search_string': series.cfg.search_string or '',
+        'language': series.cfg.language or '',
+        'provider': series.cfg.provider or '',
+        'providers': providers,
+        'quality_options': list(get_type(series.cfg.quality)),
+        'identifier_options': list(get_type(series.cfg.identifier)),
+        'seasons': seasons,
+    }
+
+
+@web.get('/api/downloads')
+def downloads_list():
+    manager = web.request['stagehand.manager']
+    weeks_param = web.request.query.weeks
+    status_param = web.request.query.status or 'have'
+    weeks = int(weeks_param) if weeks_param.isdigit() else 1
+
+    queue = []
+    for ep, results in manager.retrieve_queue:
+        task = manager.get_episode_retrieve_task(ep)
+        if task and hasattr(task, 'progress') and task.progress:
+            progress = {
+                'percentage': task.progress.percentage,
+                'current_mb': round(task.progress.pos / 1024 / 1024, 1),
+                'total_mb': round(task.progress.max / 1024 / 1024, 1),
+                'speed_kb': int(task.progress.speed / 1024),
+            }
+        else:
+            progress = None
+        queue.append({
+            'show_id': ep.series.id,
+            'show_name': ep.series.name,
+            'code': ep.code,
+            'season': ep.season.number,
+            'number': ep.number,
+            'name': ep.name or '',
+            'airdate': ep.airdate.strftime('%Y-%m-%d') if ep.airdate else None,
+            'progress': progress,
+        })
+
+    today = datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    sunday = today if today.weekday() == 6 else today - timedelta(days=today.weekday() + 1)
+    episodes = []
+    for s in manager.tvdb.series:
+        for ep in s.episodes:
+            if ep.status != ep.STATUS_NEED_FORCED and (not ep.aired or manager.is_episode_queued_for_retrieval(ep)):
+                continue
+            if s.cfg.paused:
+                continue
+            icon, title = episode_status_icon_info(ep)
+            if ep.airdate:
+                week = (max(0, (sunday - ep.airdate).days) + 6) // 7
+                if (icon in ('ignore', 'have') and week >= weeks) or (icon == 'ignore' and status_param == 'have'):
+                    continue
+            else:
+                week = None
+            episodes.append({
+                'show_id': s.id,
+                'show_name': s.name,
+                'code': ep.code,
+                'season': ep.season.number,
+                'number': ep.number,
+                'name': ep.name or '',
+                'airdate': ep.airdate.strftime('%Y-%m-%d') if ep.airdate else None,
+                'status': icon,
+                'status_title': title,
+                'week': week,
+            })
+
+    episodes.sort(key=lambda i: (i.get('airdate') or '1900-01-01', i['name']), reverse=True)
+    return {'queue': queue, 'episodes': episodes, 'weeks': weeks, 'status': status_param}
