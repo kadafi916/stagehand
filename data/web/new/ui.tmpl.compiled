@@ -66,6 +66,13 @@
         .episode-table .ep-date { color: #888; white-space: nowrap; width: 7em; }
         .episode-table .ep-status { width: 2.5em; text-align: center; }
         .episode-table tr:hover { background: rgba(255,255,255,0.05); cursor: pointer; }
+        .ep-dot { cursor: pointer; }
+        .ep-dot:hover { opacity: 0.75; }
+        #ep-action-menu { position: fixed; background: #1e1e1e; border: 1px solid #444; border-radius: 4px;
+            box-shadow: 0 4px 14px rgba(0,0,0,0.7); z-index: 9999; min-width: 170px; display: none; }
+        #ep-action-menu .ep-menu-item { padding: 9px 16px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #333; }
+        #ep-action-menu .ep-menu-item:last-child { border-bottom: none; }
+        #ep-action-menu .ep-menu-item:hover { background: #2d2d2d; }
         .season-header {
             background: rgba(255,255,255,0.08); padding: 8px 14px;
             font-weight: bold; cursor: pointer; user-select: none;
@@ -378,6 +385,13 @@ searchers.easynews.password = your_password</pre>
         <h2 style="margin-bottom:1rem">Application Log</h2>
         <p style="color:#888; font-size:13px">Log streaming is not yet implemented. Check the Docker container output for live logs.</p>
     </div>
+</div>
+
+<!-- ============================================================ EPISODE ACTION MENU -->
+<div id="ep-action-menu">
+    <div class="ep-menu-item" data-action="need" style="color:#e03997">&#9679; Mark as Needed</div>
+    <div class="ep-menu-item" data-action="ignore" style="color:#767676">&#9679; Mark as Ignored</div>
+    <div class="ep-menu-item" data-action="delete" style="color:#db2828">&#10007; Delete File + Ignore</div>
 </div>
 
 <!-- ============================================================ MODAL: CONFIRM DELETE -->
@@ -840,6 +854,49 @@ function saveShowSettings(showId) {
         .fail(function(err) { notify('Save Failed', err.message, 'error'); });
 }
 
+// ---------------------------------------------------------------- Episode status menu
+var $epMenu = null;
+var _epMenuShowId = null;
+var _epMenuCode = null;
+
+function initEpActionMenu() {
+    $epMenu = $('#ep-action-menu');
+    $epMenu.find('.ep-menu-item').on('click', function() {
+        var action = $(this).attr('data-action');
+        $epMenu.hide();
+        if (_epMenuShowId && _epMenuCode) {
+            setEpisodeStatus(_epMenuShowId, _epMenuCode, action);
+        }
+    });
+    $(document).on('click.epmenu', function(e) {
+        if (!$(e.target).closest('#ep-action-menu').length) $epMenu.hide();
+    });
+}
+
+function showEpMenu(showId, code, $dot) {
+    _epMenuShowId = showId;
+    _epMenuCode = code;
+    var off = $dot[0].getBoundingClientRect();
+    var menuW = 170, winW = $(window).width();
+    var left = Math.min(off.right - menuW, winW - menuW - 10);
+    left = Math.max(left, 10);
+    $epMenu.css({ top: off.bottom + 4, left: left }).show();
+}
+
+function setEpisodeStatus(showId, code, action) {
+    stagehand.api('/api/shows/' + encodeURIComponent(showId) + '/episodes/' + encodeURIComponent(code) + '/status?value=' + action, {}, 'POST')
+        .done(function(r) {
+            var statuses = r.statuses || {};
+            for (var epCode in statuses) {
+                var icon = statuses[epCode][0], title = statuses[epCode][1];
+                $('.ep-dot[data-ep-code="' + epCode + '"]')
+                    .attr('class', 'ep-dot status-' + icon)
+                    .attr('title', title + ' — click to change');
+            }
+        })
+        .fail(function(err) { notify('Status Change Failed', err.message, 'error'); });
+}
+
 function renderSeasons(seasons, showId) {
     var $c = $('#show-seasons').empty();
     if (!seasons.length) { $c.html('<p style="color:#888">No episodes found.</p>'); return; }
@@ -864,7 +921,12 @@ function renderSeasons(seasons, showId) {
             $tr.append($('<td>').addClass('ep-num').text(ep.number));
             $tr.append($('<td>').text(ep.name || '(TBA)'));
             $tr.append($('<td>').addClass('ep-date').text(ep.airdate || 'TBA'));
-            var $dot = $('<span>').addClass('status-' + ep.status).attr('title', ep.status_title).html('&#9679;');
+            var $dot = $('<span>').addClass('ep-dot status-' + ep.status)
+                .attr({ title: ep.status_title + ' — click to change', 'data-ep-code': ep.code })
+                .html('&#9679;');
+            (function($d, code) {
+                $d.on('click', function(e) { e.stopPropagation(); showEpMenu(showId, code, $d); });
+            })($dot, ep.code);
             $tr.append($('<td>').addClass('ep-status').append($dot));
             (function(code, name) {
                 $tr.on('click', function() {
@@ -1050,6 +1112,7 @@ $(document).ready(function() {
     });
 
     initAddShow();
+    initEpActionMenu();
     window.addEventListener('hashchange', route);
     route();
 });
