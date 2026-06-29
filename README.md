@@ -1,80 +1,60 @@
 # Stagehand
 
 **This software is somewhat half-baked. It only works (though it works well)
-if you have an [Easynews](https://easynews.com) account.  Generic NNTP isn't
+if you have an [Easynews](https://easynews.com) account. Generic NNTP isn't
 supported yet (but help is welcome).**
 
 
 ## What it is
 
-Stagehand is a manager for your favourite TV series.  It automatically
-downloads new episodes of the TV shows in your library, and provides a convenient
-interface to download previously aired episodes.
+Stagehand is a manager for your favourite TV series. It automatically
+downloads new episodes of the TV shows in your library, and provides a
+convenient web interface for managing your collection.
 
-Here are some of the main features:
+Key features:
 
-* ~~Pretty, modern-looking UI~~ (Well it was 10 years ago.)
-* Support for multiple TV metadata providers (currently TheTVDB and TVmaze): easily choose the authoritative provider per-series
-* (Exclusive) support for Easynews HTTP-based global search
-* Multi-platform: tested on Linux and Windows (and theoretically works on OS X)
+* Modern dark single-page UI (Semantic UI, plain ES6 — no CoffeeScript required)
+* Support for multiple TV metadata providers (TheTVDB and TVmaze): choose the authoritative provider per series
+* Exclusive support for Easynews HTTP-based global search
+* Per-episode status management: mark episodes as Needed, Ignored, or delete and re-download
+* Runs on Python 3.11+ (Docker image uses Python 3.13)
 
 ## What it isn't
 
-The core of Stagehand is quite robust, but many essential features are missing:
+The core is quite robust, but several features are missing:
 
-* NZB and NNTP support (for non-Easynews Usenet services): the most critical missing functionality
-* Bittorrent
-* Web-based configuration UI
+* NZB and NNTP support (for non-Easynews Usenet services): the most critical missing piece
+* BitTorrent
+* Web-based settings UI (credentials must be set in the config file for now)
 * Ability to import an existing TV library
 * ... and a bazillion FIXMEs and TODOs in the source
 
 
-## What it looks like
-
-![](https://stagehand.ca/img/stagehand.jpg)
-
-![](https://stagehand.ca/img/stagehand2.jpg)
-
-
-
 ## How to run it
 
-Stagehand requires Python 3.11 or later. The included `Dockerfile` builds a working
-image from source using Python 3.13.
+The included `Dockerfile` is the easiest way to get started.
 
 ```bash
-# Generate config modules from their XML sources (one-time, or after pulling changes)
-python3 -c "
-from stagehand.toolbox import xmlconfig
-xmlconfig.convert('stagehand/config.cxml', 'stagehand/config.py', 'stagehand', 'stagehand.toolbox.config')
-xmlconfig.convert('stagehand/searchers/easynews_config.cxml', 'stagehand/searchers/easynews_config.py', 'stagehand.searchers', 'stagehand.toolbox.config')
-xmlconfig.convert('stagehand/notifiers/email_config.cxml', 'stagehand/notifiers/email_config.py', 'stagehand.notifiers', 'stagehand.toolbox.config')
-xmlconfig.convert('stagehand/notifiers/xbmc_config.cxml', 'stagehand/notifiers/xbmc_config.py', 'stagehand.notifiers', 'stagehand.toolbox.config')
-"
-
 docker build -t stagehand .
 
-docker run -ti -p 8088:8088 \
+docker run -d -p 8088:8088 \
   -v $HOME/.config/stagehand:/root/.config/stagehand \
-  -v /data/tv:/tv \
+  -v /path/to/tv:/tv \
   stagehand
 ```
 
-Change `/data/tv` to the path where you want downloaded episodes stored.
+Change `/path/to/tv` to the directory where you want episodes saved.
 
-The web interface will be available at `http://localhost:8088`.
-
-👉 You can daemonize the container by adding `-d` to the `docker run` command.
+The web interface is at **http://localhost:8088**.
 
 
 ## How to configure it
 
-Ideally you'd be able to configure Stagehand from the web interface, but this isn't
-implemented yet. Until then, you will need to edit the config file at
-`~/.config/stagehand/config`.
+Settings are managed via a plain-text config file. On first run Stagehand
+creates it at `~/.config/stagehand/config` (inside the container this maps
+to the host path you mounted above).
 
-Minimally, you will need these lines, which you can safely append to the bottom
-of the file:
+To enable Easynews search, append these lines:
 
 ```
 searchers.enabled[+] = easynews
@@ -82,5 +62,26 @@ searchers.easynews.username = your_easynews_username
 searchers.easynews.password = your_easynews_password
 ```
 
-Once you save the config file, you're ready to start using Stagehand.  No reload
-is needed, it will pick up the changes dynamically.
+No restart needed — Stagehand watches the config file and picks up changes
+automatically.
+
+
+## Using the UI
+
+| Page | How to get there |
+|------|-----------------|
+| TV library | Click **TV Shows** in the nav bar |
+| Add a series | Click **Add TV Show** or use the search box in the nav bar |
+| Show detail & episodes | Click any banner in the library |
+| Mark an episode | On the show detail page, click the colored **●** next to any episode |
+| Downloads | Click **Downloads** in the nav bar |
+
+### Episode status dots
+
+| Color | Meaning |
+|-------|---------|
+| 🟢 Green | Downloaded |
+| 🩷 Pink | Needed (will be downloaded) |
+| ⚫ Gray | Ignored or not yet aired |
+
+Click any dot to open an action menu: **Mark as Needed**, **Mark as Ignored**, or **Delete File + Ignore**.
