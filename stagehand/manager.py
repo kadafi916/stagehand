@@ -123,8 +123,8 @@ class Manager:
         if self._next_episode_check_timer:
             self._next_episode_check_timer.cancel()
         delta = to_timestamp(next) - time.time()
-        handle = self.loop.call_at(self.loop.time() + delta, asyncio.ensure_future,
-                                    self.check_new_episodes(reschedule=True))
+        handle = self.loop.call_at(self.loop.time() + delta,
+                                    lambda: asyncio.ensure_future(self.check_new_episodes(reschedule=True)))
         self._next_episode_check_timer = handle
 
 
