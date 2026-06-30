@@ -225,6 +225,7 @@ def get_general_settings():
         'language':           str(config.misc.language),
         'loglevel':           str(config.misc.loglevel),
         'parallel':           int(config.retrievers.parallel),
+        'rename':             bool(config.naming.rename),
         'separator':          str(config.naming.separator),
         'season_dir_format':  str(config.naming.season_dir_format),
         'code_style':         str(config.naming.code_style),
@@ -255,6 +256,7 @@ def set_general_settings():
     _set('misc.language',           d.get('language'))
     _set('misc.loglevel',           d.get('loglevel'))
     _set('retrievers.parallel',     d.get('parallel'), int)
+    _set('naming.rename',            d.get('rename'), lambda v: v if isinstance(v, bool) else str(v).lower() not in ('false', '0', 'no'))
     _set('naming.separator',        d.get('separator'))
     _set('naming.season_dir_format',d.get('season_dir_format'))
     _set('naming.code_style',       d.get('code_style'))
@@ -303,6 +305,7 @@ def get_check_hours():
 def set_check_hours():
     from ..config import config
     from ..toolbox.config import get_default
+    manager = web.request['stagehand.manager']
     hours = web.request.json.get('hours', [])
     hours = sorted(set(int(h) for h in hours if 0 <= int(h) <= 23))
     if not hours:
@@ -310,6 +313,7 @@ def set_check_hours():
         hours = sorted(int(h.strip()) for h in default.split(',') if h.strip().isdigit())
     config.searchers.hours = ', '.join(str(h) for h in hours)
     config.save()
+    manager._schedule_next_episode_check()
     return {'hours': hours}
 
 @web.get('/api/restart')

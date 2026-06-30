@@ -394,6 +394,10 @@
                     <div class="settings-radio-group" id="cfg-loglevel-group"></div>
                 </div>
             </div>
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.75rem">
+                <button class="ui button" id="btn-save-general">Save</button>
+                <span id="general-status" style="font-size:12px; color:#4caf50"></span>
+            </div>
         </div>
 
         <!-- Downloads -->
@@ -403,11 +407,23 @@
                 <label>Parallel Downloads</label>
                 <input type="number" id="cfg-parallel" min="1" max="10" style="width:70px">
             </div>
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.75rem">
+                <button class="ui button" id="btn-save-downloads">Save</button>
+                <span id="downloads-status" style="font-size:12px; color:#4caf50"></span>
+            </div>
         </div>
 
         <!-- File Naming -->
         <div class="settings-card">
             <h3>File Naming</h3>
+            <div class="settings-field" style="margin-bottom:0.75rem">
+                <label style="display:flex; align-items:center; gap:0.5rem; cursor:pointer">
+                    <input type="checkbox" id="cfg-rename" style="width:auto">
+                    Rename downloaded files using the format below
+                </label>
+                <div style="font-size:12px; color:#666; margin-top:4px">When unchecked, original filenames from the source are kept.</div>
+            </div>
+            <div id="cfg-naming-fields">
             <div style="display:flex; gap:1rem; flex-wrap:wrap">
                 <div class="settings-field" style="flex:1; min-width:180px">
                     <label>Word Separator</label>
@@ -441,6 +457,11 @@
             </div>
             <div style="font-size:12px; color:#aaa; margin-top:0.5rem">
                 Preview: <code id="cfg-naming-preview" style="color:#ccc"></code>
+            </div>
+            </div><!-- end cfg-naming-fields -->
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.75rem">
+                <button class="ui button" id="btn-save-naming">Save</button>
+                <span id="naming-status" style="font-size:12px; color:#4caf50"></span>
             </div>
         </div>
 
@@ -497,6 +518,7 @@
                 <button class="ui button mini" id="hours-none">None</button>
                 <button class="ui button mini" id="hours-every2">Every 2h</button>
                 <button class="ui button mini" id="hours-every4">Every 4h</button>
+                <button class="ui button" id="btn-save-hours">Save</button>
                 <span id="hours-save-status" style="font-size:12px; color:#4caf50; margin-left:0.5rem"></span>
             </div>
         </div>
@@ -1089,10 +1111,12 @@ function setEpisodeStatus(showId, code, action) {
                     .attr('class', 'ep-dot status-' + icon)
                     .attr('title', title + ' — click to change');
             }
+            var label = action === 'need' ? 'Marked as Needed' : action === 'ignore' ? 'Marked as Ignored' : 'Deleted + Ignored';
             if (isBulk) {
                 var count = Object.keys(statuses).length;
-                var label = action === 'need' ? 'Marked as Needed' : action === 'ignore' ? 'Marked as Ignored' : 'Deleted + Ignored';
                 notify(label, count + ' episode' + (count !== 1 ? 's' : '') + ' updated.', 'info');
+            } else {
+                notify(label, 'Episode ' + code + ' updated.', 'info');
             }
         })
         .fail(function(err) { notify('Status Change Failed', err.message, 'error'); });
@@ -1408,13 +1432,14 @@ $(document).ready(function() {
                 $('#cfg-en-user').val(d.easynews_username || '');
                 $('#cfg-en-pass').val(d.easynews_password || '');
                 buildRadioGroup($('#cfg-loglevel-group'), 'cfg-loglevel', LOGLEVEL_OPTS, LOGLEVEL_LABELS, d.loglevel || 'info');
+                $('#cfg-rename').prop('checked', d.rename !== false);
+                $('#cfg-naming-fields').toggle(d.rename !== false);
                 $('input[name="cfg-sep"][value="' + (d.separator || '_') + '"]').prop('checked', true);
                 var codeVal = d.code_style || '';
                 var $codeMatch = $('input[name="cfg-code"][value="' + codeVal + '"]');
                 if ($codeMatch.length) { $codeMatch.prop('checked', true); }
                 else { $('input[name="cfg-code"]').prop('checked', false); }
                 updateNamingPreview(d);
-                $('#cfg-loglevel-group, input[name="cfg-sep"], input[name="cfg-code"]').on('change', scheduleSave);
             });
         }
 
@@ -1423,36 +1448,65 @@ $(document).ready(function() {
             else if (d && d.error) $('#cfg-naming-preview').text('Error: ' + d.error);
         }
 
-        function getPayload() {
-            return {
-                tvdir:              $('#cfg-tvdir').val(),
-                language:           $('#cfg-language').val(),
-                loglevel:           $('input[name="cfg-loglevel"]:checked').val(),
-                parallel:           parseInt($('#cfg-parallel').val(), 10) || 1,
-                separator:          $('input[name="cfg-sep"]:checked').val() || '_',
-                season_dir_format:  $('#cfg-season-dir').val(),
-                code_style:         $('input[name="cfg-code"]:checked').val() || $('#cfg-ep-format').val(),
-                episode_format:     $('#cfg-ep-format').val(),
-            };
+        function showSectionStatus(sel, ok, msg) {
+            $(sel).css('color', ok ? '#4caf50' : '#db2828').text(msg).show();
+            setTimeout(function() { $(sel).fadeOut(400); }, 2000);
         }
 
-        function scheduleSave() {
-            clearTimeout(saveTimer);
-            saveTimer = setTimeout(saveGeneralSettings, 800);
-        }
-
-        function saveGeneralSettings() {
+        function postSettings(payload, statusSel) {
             $.ajax({ url: ROOT + '/api/settings/general', method: 'POST',
-                contentType: 'application/json', data: JSON.stringify(getPayload()) })
+                contentType: 'application/json', data: JSON.stringify(payload) })
                 .done(function(r) {
-                    updateNamingPreview(r.example);
-                    notify('Settings', 'Saved.', 'info');
+                    updateNamingPreview(r);
+                    showSectionStatus(statusSel, true, 'Saved');
                 })
-                .fail(function() { notify('Settings', 'Save failed.', 'error'); });
+                .fail(function() { showSectionStatus(statusSel, false, 'Save failed'); });
         }
 
-        $('#cfg-tvdir, #cfg-language, #cfg-parallel, #cfg-season-dir, #cfg-ep-format')
-            .on('input change', scheduleSave);
+        $('#btn-save-general').on('click', function() {
+            postSettings({
+                tvdir:    $('#cfg-tvdir').val(),
+                language: $('#cfg-language').val(),
+                loglevel: $('input[name="cfg-loglevel"]:checked').val(),
+            }, '#general-status');
+        });
+
+        $('#btn-save-downloads').on('click', function() {
+            postSettings({
+                parallel: parseInt($('#cfg-parallel').val(), 10) || 1,
+            }, '#downloads-status');
+        });
+
+        $('#cfg-rename').on('change', function() {
+            $('#cfg-naming-fields').toggle(this.checked);
+        });
+
+        $('#btn-save-naming').on('click', function() {
+            postSettings({
+                rename:            $('#cfg-rename').prop('checked'),
+                separator:         $('input[name="cfg-sep"]:checked').val() || '_',
+                season_dir_format: $('#cfg-season-dir').val(),
+                code_style:        $('input[name="cfg-code"]:checked').val() || '',
+                episode_format:    $('#cfg-ep-format').val(),
+            }, '#naming-status');
+        });
+
+        // Update naming preview live without saving
+        function livePreview() {
+            if (!$('#cfg-rename').prop('checked')) return;
+            $.ajax({ url: ROOT + '/api/settings/general', method: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify({
+                    rename:            true,
+                    separator:         $('input[name="cfg-sep"]:checked').val() || '_',
+                    season_dir_format: $('#cfg-season-dir').val(),
+                    code_style:        $('input[name="cfg-code"]:checked').val() || '',
+                    episode_format:    $('#cfg-ep-format').val(),
+                }) })
+                .done(function(r) { updateNamingPreview(r); });
+        }
+        $('#cfg-season-dir, #cfg-ep-format').on('input', livePreview);
+        $('input[name="cfg-sep"], input[name="cfg-code"]').on('change', livePreview);
 
         function credSave(userSel, passSel, statusSel, extra) {
             var user = $(userSel).val(), pass = $(passSel).val();
@@ -1496,7 +1550,6 @@ $(document).ready(function() {
     (function() {
         var $box = $('#hours-checkboxes');
         var $status = $('#hours-save-status');
-        var saveTimer = null;
 
         function buildCheckboxes(checked) {
             $box.empty();
@@ -1510,23 +1563,17 @@ $(document).ready(function() {
                 }).append($cb).append(document.createTextNode(label));
                 $box.append($lbl);
             }
-            $box.find('input').on('change', scheduleSave);
         }
 
         function getChecked() {
             return $box.find('input:checked').map(function() { return +this.value; }).get();
         }
 
-        function scheduleSave() {
-            clearTimeout(saveTimer);
-            saveTimer = setTimeout(saveHours, 600);
-        }
-
         function saveHours() {
             $.ajax({ url: ROOT + '/api/settings/check-hours', method: 'POST',
                 contentType: 'application/json', data: JSON.stringify({ hours: getChecked() }) })
                 .done(function() {
-                    $status.text('Saved').show();
+                    $status.css('color', '#4caf50').text('Saved').show();
                     setTimeout(function() { $status.fadeOut(400); }, 2000);
                 })
                 .fail(function() { $status.css('color', '#db2828').text('Save failed').show(); });
@@ -1534,16 +1581,15 @@ $(document).ready(function() {
 
         $.get(ROOT + '/api/settings/check-hours', function(d) { buildCheckboxes(d.hours || []); });
 
-        $('#hours-all').on('click', function() { $box.find('input').prop('checked', true); scheduleSave(); });
-        $('#hours-none').on('click', function() { $box.find('input').prop('checked', false); scheduleSave(); });
+        $('#hours-all').on('click', function() { $box.find('input').prop('checked', true); });
+        $('#hours-none').on('click', function() { $box.find('input').prop('checked', false); });
         $('#hours-every2').on('click', function() {
             $box.find('input').each(function() { $(this).prop('checked', this.value % 2 === 0); });
-            scheduleSave();
         });
         $('#hours-every4').on('click', function() {
             $box.find('input').each(function() { $(this).prop('checked', this.value % 4 === 0); });
-            scheduleSave();
         });
+        $('#btn-save-hours').on('click', saveHours);
     })();
 
     // Downloads controls

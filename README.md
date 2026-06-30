@@ -72,6 +72,8 @@ Each episode has a colored dot showing its status. Click a dot to open the actio
 
 Actions: **Mark as Needed**, **Mark as Ignored**, **Delete File + Ignore**
 
+A notification is shown after every status change — single episode or full season.
+
 ### Season actions
 
 Click the **⋯** button on any season header to apply an action to the entire season at once.
@@ -84,15 +86,15 @@ Active downloads show a progress bar with MB transferred and speed. The page upd
 
 ## Settings UI
 
-All common settings are available under **Configure → Settings**:
+All common settings are available under **Configure → Settings**. Every section has an explicit **Save** button — nothing is written to disk until you click it.
 
 | Section | Options |
 |---------|---------|
 | General | TV directory, metadata language, log level |
 | Downloads | Max parallel downloads |
-| File Naming | Word separator, episode code style (`s01e02` / `1x02`), season directory format, episode filename format with live preview |
-| Web Access | Optional HTTP basic auth (username + password, explicit Save button) |
-| Easynews | Username and password (explicit Save button) |
+| File Naming | Optional rename toggle; when enabled: word separator, episode code style (`s01e02` / `1x02`), season directory format, episode filename format with live preview. Disable rename to keep original source filenames. |
+| Web Access | Optional HTTP basic auth (username + password) |
+| Easynews | Username and password |
 | Episode Check Schedule | Checkboxes for each hour of the day; quick-select All / None / Every 2h / Every 4h |
 | System | Trigger an immediate episode check |
 

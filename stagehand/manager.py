@@ -94,6 +94,8 @@ class Manager:
                 # Might have increased the number of parallel downloads allowed.
                 # Wake up retrieve queue manager.
                 self._retrieve_queue_processor_signal.emit_when_handled()
+            if 'searchers.hours' in changed:
+                self._schedule_next_episode_check()
         await self._load_series_from_config()
 
 
