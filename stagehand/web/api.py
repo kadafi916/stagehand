@@ -452,7 +452,7 @@ def downloads_list():
     episodes = []
     for s in manager.tvdb.series:
         for ep in s.episodes:
-            if ep.status != ep.STATUS_NEED_FORCED and (not ep.aired or manager.is_episode_queued_for_retrieval(ep)):
+            if ep.status not in (ep.STATUS_HAVE, ep.STATUS_NEED_FORCED) and (not ep.aired or manager.is_episode_queued_for_retrieval(ep)):
                 continue
             if s.cfg.paused:
                 continue
