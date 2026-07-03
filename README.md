@@ -113,7 +113,15 @@ All common settings are available under **Configure → Settings**. Every sectio
 
 ### Quality preference
 
-When **HD** is selected, Stagehand prefers 1080p results over 720p regardless of file size or codec. Resolution is evaluated before A/V format and size, so a smaller but higher-resolution file always wins over a larger lower-resolution one.
+The quality setting controls both the minimum acceptable file size and which resolutions are allowed:
+
+| Setting | Accepted resolutions | Preferred |
+|---------|----------------------|-----------|
+| UHD | 2160p, 1080p, 720p | 2160p |
+| HD | 1080p, 720p | 1080p |
+| SD | below 720p | highest available |
+
+2160p results are automatically disqualified when HD is selected, so a 4K result will never be downloaded when you want HD. Resolution is evaluated before codec and file size, so a 1080p file always beats a 720p file. Within the same resolution, x265 is preferred over x264, and lossless/surround audio (DDP, TrueHD, DTS, AC3) is preferred over AAC.
 
 ---
 

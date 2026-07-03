@@ -69,9 +69,11 @@ class SearcherBase:
             'wmv': -inf, 'mpg': -inf, 'ts': -inf, 'rar': -inf, r'r\d\d': -inf,
         }
         av = {
-            (r'[xh]\.?26[45]', r'(ac-?3|dts|dd5\.?1)'): 10,
-            (r'[xh]\.?26[45]', None): 9,
-            (None,  r'(ac-?3|dts)'): 8,
+            (r'[xh]\.?265', r'(ac-?3|e-?ac-?3|ddp[\d.]*|truehd|dts|dd5\.?1)'): 12,
+            (r'[xh]\.?265', None): 11,
+            (r'[xh]\.?264', r'(ac-?3|e-?ac-?3|ddp[\d.]*|truehd|dts|dd5\.?1)'): 10,
+            (r'[xh]\.?264', None): 9,
+            (None, r'(ac-?3|e-?ac-?3|ddp[\d.]*|dts)'): 8,
             (None, r'aac\.?2?'): -1
         }
         res = {'2160p': 3, '1080p': 2, '720p': 1}
@@ -270,6 +272,23 @@ class SearcherBase:
                                 results.setdefault(ep, []).append(result)
                                 break
             del results[None]
+
+        # Disqualify results that exceed the selected quality tier.
+        quality_str = str(quality).upper()
+        if quality_str == 'HD':
+            over_res = re.compile(r'[-. ]2160p[-. $]', re.I)
+            for l in results.values():
+                for result in l:
+                    if over_res.search(result.filename):
+                        log.info('disqualifying result %s: 2160p exceeds HD quality setting', result)
+                        result.disqualified = True
+        elif quality_str == 'SD':
+            over_res = re.compile(r'[-. ](2160p|1080p|720p)[-. $]', re.I)
+            for l in results.values():
+                for result in l:
+                    if over_res.search(result.filename):
+                        log.info('disqualifying result %s: resolution exceeds SD quality setting', result)
+                        result.disqualified = True
 
         # Sort, remove disqualified results, and set common result attributes.
         for ep, l in list(results.items()):
