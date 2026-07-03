@@ -104,12 +104,16 @@ All common settings are available under **Configure → Settings**. Every sectio
 | Section | Options |
 |---------|---------|
 | General | TV directory, metadata language, log level |
-| Downloads | Max parallel downloads |
+| Downloads | Max parallel downloads, quality preference (SD / HD / UHD) |
 | File Naming | Optional rename toggle; when enabled: word separator, episode code style (`s01e02` / `1x02`), season directory format, episode filename format with live preview. Disable rename to keep original source filenames. |
 | Web Access | Optional HTTP basic auth (username + password) |
 | Easynews | Username and password |
 | Episode Check Schedule | Checkboxes for each hour of the day; quick-select All / None / Every 2h / Every 4h |
 | System | Trigger an immediate episode check |
+
+### Quality preference
+
+When **HD** is selected, Stagehand prefers 1080p results over 720p regardless of file size or codec. Resolution is evaluated before A/V format and size, so a smaller but higher-resolution file always wins over a larger lower-resolution one.
 
 ---
 

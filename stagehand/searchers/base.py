@@ -103,6 +103,21 @@ class SearcherBase:
         if ascore != bscore:
             return 1 if bscore > ascore else -1
 
+        def score_by_search(items):
+            ascore = bscore = 0
+            for substr, score in items:
+                restr = re.compile(r'[-. ]%s[-. $]' % substr)
+                if restr.search(aname):
+                    ascore = score
+                if restr.search(bname):
+                    bscore = score
+            return ascore, bscore
+
+        # Sort by resolution — checked before codec/size so 1080p always beats 720p
+        ascore, bscore = score_by_search(res.items())
+        if ascore != bscore:
+            return 1 if bscore > ascore else -1
+
         # Sort by A/V format
         ascore = bscore = 0
         for (vformat, aformat), score in av.items():
@@ -131,21 +146,6 @@ class SearcherBase:
             # Otherwise prefer the one closest to ideal.
             else:
                 return 1 if abs(1-aratio) > abs(1-bratio) else -1
-
-        def score_by_search(items):
-            ascore = bscore = 0
-            for substr, score in items:
-                restr = re.compile(r'[-. ]%s[-. $]' % substr)
-                if restr.search(aname):
-                    ascore = score
-                if restr.search(bname):
-                    bscore = score
-            return ascore, bscore
-
-        # Sort by resolution
-        ascore, bscore = score_by_search(res.items())
-        if ascore != bscore:
-            return 1 if bscore > ascore else -1
 
         # Sort by other modifiers
         ascore, bscore = score_by_search(mods.items())
