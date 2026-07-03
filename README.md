@@ -72,7 +72,7 @@ Each episode has a colored dot showing its status. Click a dot to open the actio
 
 Actions: **Mark as Needed**, **Mark as Ignored**, **Delete File + Ignore**
 
-**Mark as Needed** triggers an immediate search regardless of airtime — useful for episodes that have aired but haven't been picked up yet, or to pre-queue an upcoming episode. The automatic download behavior for unaired episodes is handled by the default status (`STATUS_NONE`) which checks on the normal schedule.
+**Mark as Needed** triggers an immediate search regardless of airtime. This is useful for episodes that aired before you added the show (which are auto-ignored on add), episodes you previously ignored and want back, or to force a search now rather than waiting for the next scheduled check. Future episodes are downloaded automatically on schedule without needing to be marked.
 
 A notification is shown after every status change — single episode or full season.
 
