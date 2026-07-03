@@ -294,6 +294,14 @@
                     <span id="show-flat-label">No</span>
                 </label>
             </div>
+            <div class="settings-field" style="min-width:150px">
+                <label>No Show Folder</label>
+                <label style="cursor:pointer; display:flex; align-items:center; gap:8px; padding:5px 0">
+                    <input type="checkbox" id="show-nosubdir-cb" style="width:auto">
+                    <span id="show-nosubdir-label">No</span>
+                </label>
+                <div style="font-size:11px; color:#666; margin-top:2px">Save directly in TV root</div>
+            </div>
         </div>
 
         <div id="show-advanced-toggle" class="season-header" style="margin-bottom:0.5rem">
@@ -967,6 +975,8 @@ function renderShowDetail(show) {
     $('#show-paused-label').text(show.paused ? 'Yes' : 'No');
     $('#show-flat-cb').prop('checked', show.flat);
     $('#show-flat-label').text(show.flat ? 'Yes' : 'No');
+    $('#show-nosubdir-cb').prop('checked', show.no_subdir);
+    $('#show-nosubdir-label').text(show.no_subdir ? 'Yes' : 'No');
     $('#show-path-input').val(show.path || '');
     $('#show-search-string-input').val(show.search_string || '');
     $('#show-language-input').val(show.language || '');
@@ -981,10 +991,11 @@ function renderShowDetail(show) {
 
     // Save settings on any change
     $('#tv-show-detail').off('change.settings').on('change.settings',
-        'input[name="show-quality"], input[name="show-identifier"], #show-paused-cb, #show-flat-cb',
+        'input[name="show-quality"], input[name="show-identifier"], #show-paused-cb, #show-flat-cb, #show-nosubdir-cb',
         function() {
             if (this.id === 'show-paused-cb') $('#show-paused-label').text(this.checked ? 'Yes' : 'No');
             if (this.id === 'show-flat-cb') $('#show-flat-label').text(this.checked ? 'Yes' : 'No');
+            if (this.id === 'show-nosubdir-cb') $('#show-nosubdir-label').text(this.checked ? 'Yes' : 'No');
             saveShowSettings(show.id);
         });
     $('#tv-show-detail').off('change.advsettings').on('change.advsettings',
@@ -1035,6 +1046,7 @@ function saveShowSettings(showId) {
         identifier: $('input[name="show-identifier"]:checked').val() || '',
         paused: $('#show-paused-cb').is(':checked') ? 'true' : 'false',
         flat: $('#show-flat-cb').is(':checked') ? 'true' : 'false',
+        no_subdir: $('#show-nosubdir-cb').is(':checked') ? 'true' : 'false',
         path: $('#show-path-input').val(),
         search_string: $('#show-search-string-input').val(),
         language: $('#show-language-input').val()

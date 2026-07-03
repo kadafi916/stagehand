@@ -93,13 +93,15 @@ def show_settings(id):
     series = get_series_from_request(id)
     settings = web.request.forms
     series.cfg.quality = settings.quality
-    series.cfg.path = settings.path
     series.cfg.search_string = settings.search_string
     series.cfg.language = settings.language
-    #series.cfg.upgrade = True if settings['upgrade'] == 'true' else False
     series.cfg.paused = True if settings['paused'] == 'true' else False
     series.cfg.flat = True if settings['flat'] == 'true' else False
     series.cfg.identifier = settings.identifier
+    if settings.get('no_subdir') == 'true':
+        series.cfg.path = '.'
+    else:
+        series.cfg.path = settings.path
 
     from ..config import config
     manager = web.request['stagehand.manager']
@@ -407,8 +409,9 @@ def show_detail(id):
         'overview': series.overview or '',
         'quality': series.cfg.quality,
         'flat': series.cfg.flat,
+        'no_subdir': str(series.cfg.path) == '.',
         'identifier': series.cfg.identifier,
-        'path': series.cfg.path or '',
+        'path': series.cfg.path or '' if str(series.cfg.path) != '.' else '',
         'search_string': series.cfg.search_string or '',
         'language': series.cfg.language or '',
         'provider': series.cfg.provider or '',

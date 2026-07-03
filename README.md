@@ -78,6 +78,17 @@ A notification is shown after every status change — single episode or full sea
 
 Click the **⋯** button on any season header to apply an action to the entire season at once.
 
+### Per-show folder options
+
+Each show's detail page has two folder controls:
+
+| Option | Effect |
+|--------|--------|
+| Flatten Seasons | Store all episodes in the show folder with no season subdirectory |
+| No Show Folder | Save episodes directly in the TV root — no show subdirectory at all |
+
+These can be combined or used independently per show.
+
 ### Downloads page
 
 Active downloads show a progress bar with MB transferred and speed. The page updates automatically when the queue changes — no manual refresh needed.

@@ -329,11 +329,10 @@ class Season:
 
     @property
     def path(self):
-        if not self.series.cfg.flat:
-            season_dir = fsname(config.naming.season_dir_format).format(season=self.number)
-            return os.path.join(self.series.path, season_dir)
-        else:
+        if self.series.cfg.flat or str(self.series.cfg.path) == '.':
             return self.series.path
+        season_dir = fsname(config.naming.season_dir_format).format(season=self.number)
+        return os.path.join(self.series.path, season_dir)
 
 
     @property
@@ -501,11 +500,14 @@ class Series:
 
     @property
     def path(self):
-        dir = fsname(self.cfg.path or fixsep(self.name))
+        p = str(self.cfg.path) if self.cfg.path else None
+        if p == '.':
+            return os.path.expanduser(str(config.misc.tvdir))
+        dir = fsname(p or fixsep(self.name))
         if dir.startswith('/'):
             return dir
         else:
-            return os.path.join(os.path.expanduser(config.misc.tvdir), dir)
+            return os.path.join(os.path.expanduser(str(config.misc.tvdir)), dir)
 
     @property
     def cfg(self):
