@@ -172,7 +172,7 @@ async def show_episodes_status(job, id, epcode):
 
     action = web.request.query.value
     status_map = {
-        'need': Episode.STATUS_NEED,
+        'need': Episode.STATUS_NEED_FORCED,
         'ignore': Episode.STATUS_IGNORE,
         'delete': Episode.STATUS_IGNORE
     }
@@ -187,11 +187,6 @@ async def show_episodes_status(job, id, epcode):
         if ep.status == Episode.STATUS_HAVE and action != 'delete':
             # Asked to ignore or retrieve an episode we already have.  Do nothing.
             pass
-        elif status_val == Episode.STATUS_NEED and ep.season.number == 0:
-            # Special case: user scheduled a special episode for download.  Normally
-            # a special episode set as STATUS_NEED is ignored.  So we set to NEED_FORCED
-            # instead.
-            ep.status = Episode.STATUS_NEED_FORCED
         else:
             ep.status = status_val
             # Clear any stored search result
@@ -199,8 +194,8 @@ async def show_episodes_status(job, id, epcode):
 
         if ep.status == Episode.STATUS_IGNORE:
             manager.cancel_episode_retrieval(ep)
-        elif (ep.status == Episode.STATUS_NEED and ep.aired) or ep.status == Episode.STATUS_NEED_FORCED:
-            # Episode either forced or marked as needed and is aired.  Ask the manager to do a search.
+        elif ep.status == Episode.STATUS_NEED_FORCED:
+            # User explicitly requested this episode — search immediately.
             do_check_new_episodes = True
         if action == 'delete' and ep.filename and os.path.isfile(ep.path):
             try:

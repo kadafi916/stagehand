@@ -327,6 +327,9 @@ class Manager:
                         log.debug('retrieve queue is %s', self.retrieve_queue)
                     else:
                         needlist.append(ep)
+                elif ep.status in (ep.STATUS_NEED, ep.STATUS_NONE) and ep.airdate and not ep.aired:
+                    airdate = ep.airdatetime.strftime('%Y-%m-%d %H:%M') if ep.airdatetime else str(ep.airdate)
+                    log.debug('skipping %s %s — not yet aired (expected %s)', series.name, ep.code, airdate)
             if needlist:
                 need[series] = needlist
 
