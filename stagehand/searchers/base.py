@@ -68,14 +68,6 @@ class SearcherBase:
             # Don't want.
             'wmv': -inf, 'mpg': -inf, 'ts': -inf, 'rar': -inf, r'r\d\d': -inf,
         }
-        av = {
-            (r'[xh]\.?265', r'(ac-?3|e-?ac-?3|ddp[\d.]*|truehd|dts|dd5\.?1)'): 12,
-            (r'[xh]\.?265', None): 11,
-            (r'[xh]\.?264', r'(ac-?3|e-?ac-?3|ddp[\d.]*|truehd|dts|dd5\.?1)'): 10,
-            (r'[xh]\.?264', None): 9,
-            (None, r'(ac-?3|e-?ac-?3|ddp[\d.]*|dts)'): 8,
-            (None, r'aac\.?2?'): -1
-        }
         res = {'2160p': 3, '1080p': 2, '720p': 1}
         mods = {r'blu-?ray': 10, 'proper': 9, r're-?pack': 7, 'immerse': 6,
                 'dimension': 5, 'nlsubs': 4, 'web-?dl': 3}
@@ -120,17 +112,27 @@ class SearcherBase:
         if ascore != bscore:
             return 1 if bscore > ascore else -1
 
-        # Sort by A/V format
-        ascore = bscore = 0
-        for (vformat, aformat), score in av.items():
-            vsearch = re.compile(r'[-. ]%s[-. $]' % vformat).search if vformat else bool
-            asearch = re.compile(r'[-. ]%s[-. $]' % aformat).search if aformat else bool
-            # Negative scores stick, but positive scores are replaced with
-            # higher positive scores.
-            if ascore >= 0 and vsearch(aname) and asearch(aname):
-                ascore = score if score > ascore or score < 0 else ascore
-            if bscore >= 0 and vsearch(bname) and asearch(bname):
-                bscore = score if score > bscore or score < 0 else bscore
+        # Sort by A/V format. Codec preference is resolution-aware:
+        # UHD (2160p): x265 > x264 — HEVC is the standard for 4K.
+        # HD/unknown: x264 > x265 — better device compatibility.
+        def av_score(name):
+            good_audio = r'(ac-?3|e-?ac-?3|ddp[\d.]*|truehd|dts|dd5\.?1)'
+            is_uhd = bool(re.search(r'[-. ]2160p[-. $]', name, re.I))
+            hi, lo = (r'[xh]\.?265', r'[xh]\.?264') if is_uhd else (r'[xh]\.?264', r'[xh]\.?265')
+            pairs = [
+                ((hi, good_audio), 12), ((hi, None), 11),
+                ((lo, good_audio), 10), ((lo, None), 9),
+                ((None, r'(ac-?3|e-?ac-?3|ddp[\d.]*|dts)'), 8),
+                ((None, r'aac\.?2?'), -1),
+            ]
+            score = 0
+            for (vfmt, afmt), s in pairs:
+                vs = re.compile(r'[-. ]%s[-. $]' % vfmt).search if vfmt else bool
+                af = re.compile(r'[-. ]%s[-. $]' % afmt).search if afmt else bool
+                if score >= 0 and vs(name) and af(name):
+                    score = s if s > score or s < 0 else score
+            return score
+        ascore, bscore = av_score(aname), av_score(bname)
         if ascore != bscore:
             return 1 if bscore > ascore else -1
 

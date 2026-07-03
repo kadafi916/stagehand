@@ -121,7 +121,7 @@ The quality setting controls both the minimum acceptable file size and which res
 | HD | 1080p, 720p | 1080p |
 | SD | below 720p | highest available |
 
-2160p results are automatically disqualified when HD is selected, so a 4K result will never be downloaded when you want HD. Resolution is evaluated before codec and file size, so a 1080p file always beats a 720p file. Within the same resolution, x265 is preferred over x264, and lossless/surround audio (DDP, TrueHD, DTS, AC3) is preferred over AAC.
+2160p results are automatically disqualified when HD is selected, so a 4K result will never be downloaded when you want HD. Resolution is evaluated before codec and file size, so a 1080p file always beats a 720p file. Within the same resolution, codec preference is resolution-aware: x264 is preferred for HD (wider device compatibility), x265/HEVC is preferred for UHD (standard for 4K). Surround/lossless audio (DDP, TrueHD, DTS, AC3) is preferred over AAC.
 
 ---
 
