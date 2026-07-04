@@ -2,9 +2,10 @@ import os
 import logging
 import time
 import asyncio
+import aiohttp
 
 from ..config import config
-from .base import RetrieverBase, RetrieverError, RetrieverAbortedSoft
+from .base import RetrieverBase, RetrieverError, RetrieverSoftError, RetrieverAbortedSoft
 from ..toolbox.net import download
 
 __all__ = ['Retriever']
@@ -50,7 +51,6 @@ class Retriever(RetrieverBase):
 
         opts = {}
         if 'username' in rdata:
-            import aiohttp
             opts['auth'] = aiohttp.BasicAuth(rdata['username'], rdata.get('password', ''))
         if 'retry' in rdata:
             opts['retry'] = rdata['retry']
@@ -72,6 +72,8 @@ class Retriever(RetrieverBase):
                 raise RetrieverAbortedSoft(*task.cancelmsg)
             else:
                 raise
+        except aiohttp.ClientError as e:
+            raise RetrieverSoftError('network error: %s' % e) from e
         finally:
             progress.disconnect(self._download_progress_cb)
 
