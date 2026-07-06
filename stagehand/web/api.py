@@ -109,6 +109,7 @@ def show_settings(id):
 
     # TODO: if pausing a series that has queued episodes, remove them and
     # notify user.
+    return {}
 
 
 @web.get('/api/shows/<id>/overview')
