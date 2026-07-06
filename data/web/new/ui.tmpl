@@ -327,6 +327,10 @@
                     <input type="text" id="show-language-input">
                 </div>
             </div>
+            <div style="margin-top:0.75rem; display:flex; align-items:center; gap:0.75rem">
+                <button class="ui button small" id="btn-save-adv-settings">Save</button>
+                <span id="show-adv-save-status" style="font-size:0.85rem"></span>
+            </div>
         </div>
 
         <div style="display:flex; gap:0.75rem; flex-wrap:wrap; margin-bottom:1.5rem">
@@ -996,11 +1000,14 @@ function renderShowDetail(show) {
             if (this.id === 'show-paused-cb') $('#show-paused-label').text(this.checked ? 'Yes' : 'No');
             if (this.id === 'show-flat-cb') $('#show-flat-label').text(this.checked ? 'Yes' : 'No');
             if (this.id === 'show-nosubdir-cb') $('#show-nosubdir-label').text(this.checked ? 'Yes' : 'No');
-            saveShowSettings(show.id);
+            saveShowSettings(show.id).fail(function(err) { notify('Save Failed', err.message, 'error'); });
         });
-    $('#tv-show-detail').off('change.advsettings').on('change.advsettings',
-        '#show-path-input, #show-search-string-input, #show-language-input',
-        function() { saveShowSettings(show.id); });
+    $('#btn-save-adv-settings').off('click').on('click', function() {
+        var $st = $('#show-adv-save-status');
+        saveShowSettings(show.id)
+            .done(function() { $st.css('color', '#4caf50').text('Saved'); setTimeout(function() { $st.text(''); }, 3000); })
+            .fail(function() { $st.css('color', '#f44336').text('Save failed'); });
+    });
     $('#tv-show-detail').off('change.provider').on('change.provider', 'input[name="show-provider"]', function() {
         stagehand.api('/api/shows/' + encodeURIComponent(show.id) + '/provider', { provider: this.value }, 'POST')
             .done(function() { loadShowDetail(show.id); })
@@ -1051,8 +1058,7 @@ function saveShowSettings(showId) {
         search_string: $('#show-search-string-input').val(),
         language: $('#show-language-input').val()
     };
-    stagehand.api('/api/shows/' + encodeURIComponent(showId) + '/settings', settings, 'POST')
-        .fail(function(err) { notify('Save Failed', err.message, 'error'); });
+    return stagehand.api('/api/shows/' + encodeURIComponent(showId) + '/settings', settings, 'POST');
 }
 
 // ---------------------------------------------------------------- Episode status menu
