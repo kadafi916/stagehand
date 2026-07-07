@@ -1,1 +1,0 @@
-%rebase('layout.tmpl', title='Web Log', section="log", subsection="web")
