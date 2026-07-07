@@ -293,6 +293,19 @@ def fixsep(s, path=True):
     return s
 
 
+def strip_html(s):
+    """
+    Remove HTML tags and unescape entities.  Some metadata providers (TVmaze)
+    return overviews as HTML fragments.
+    """
+    if not s:
+        return s
+    import html
+    s = re.sub(r'<br\s*/?>|</p>', '\n', s, flags=re.I)
+    s = re.sub(r'<[^>]+>', '', s)
+    return html.unescape(s).strip()
+
+
 def fixquotes(u):
     """
     Given a unicode string, replaces "smart" quotes, ellipses, etc.

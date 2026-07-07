@@ -11,7 +11,7 @@ import asyncio
 
 from .toolbox import Signal, db, tostr, fsname, synchronized
 
-from .utils import fixsep, fixquotes, name_to_url_segment, remove_stop_words
+from .utils import fixsep, fixquotes, name_to_url_segment, remove_stop_words, strip_html
 from .config import config
 from .searchers import SearchResult
 from .providers import plugins, ProviderError
@@ -152,7 +152,8 @@ class Episode:
 
     @property
     def overview(self):
-        return self._dbattr('overview')
+        # Some providers (TVmaze) store overviews as HTML fragments.
+        return strip_html(self._dbattr('overview'))
 
     @property
     def number(self):
@@ -537,7 +538,8 @@ class Series:
 
     @property
     def overview(self):
-        return self._dbattr('overview')
+        # Some providers (TVmaze) store overviews as HTML fragments.
+        return strip_html(self._dbattr('overview'))
 
     @property
     def runtime(self):
