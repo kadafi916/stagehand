@@ -4,12 +4,70 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Stagehand</title>
-    <link rel="shortcut icon" href="{{root}}/static/img/favicon.ico">
+    <link rel="shortcut icon" href="{{root}}/static/new/img/favicon.ico">
     <link rel="stylesheet" href="{{root}}/static/new/css/semantic.min.css.gz">
     <link rel="stylesheet" href="{{root}}/static/new/css/stagehand.css">
     <style>
-        body { background: #1b1c1d; color: #e0e0e0; margin: 0; padding: 0; }
+        /* Theme palette.  Dark is the default; body.theme-light overrides.
+           The top nav intentionally stays dark in both themes. */
+        :root {
+            --bg: #1b1c1d;
+            --text: #e0e0e0;
+            --text-strong: #fff;
+            --text-bright: #eee;
+            --text-body: #ddd;
+            --text-soft: #ccc;
+            --muted: #888;
+            --muted-soft: #aaa;
+            --muted-dim: #666;
+            --surface: #2d2d2d;
+            --surface-2: #232323;
+            --surface-3: #1e1e1e;
+            --input-bg: #111;
+            --border: #444;
+            --border-soft: #333;
+            --border-strong: #555;
+            --hover: rgba(255,255,255,0.05);
+            --hover-strong: rgba(255,255,255,0.08);
+            --hover-stronger: rgba(255,255,255,0.12);
+            --shadow: rgba(0,0,0,0.5);
+            --shadow-strong: rgba(0,0,0,0.7);
+        }
+        body.theme-light {
+            --bg: #f2f2f2;
+            --text: #2a2a2a;
+            --text-strong: #000;
+            --text-bright: #222;
+            --text-body: #333;
+            --text-soft: #444;
+            --muted: #777;
+            --muted-soft: #666;
+            --muted-dim: #999;
+            --surface: #ffffff;
+            --surface-2: #ebebeb;
+            --surface-3: #ffffff;
+            --input-bg: #fff;
+            --border: #ccc;
+            --border-soft: #ddd;
+            --border-strong: #bbb;
+            --hover: rgba(0,0,0,0.04);
+            --hover-strong: rgba(0,0,0,0.07);
+            --hover-stronger: rgba(0,0,0,0.1);
+            --shadow: rgba(0,0,0,0.15);
+            --shadow-strong: rgba(0,0,0,0.25);
+        }
+        body { background: var(--bg); color: var(--text); margin: 0; padding: 0; }
         #app-menu { box-shadow: 0 3px 20px rgba(0,0,0,0.8) !important; }
+        /* Semantic UI inverted basic buttons are white-outline; fix for light bg */
+        body.theme-light .ui.basic.inverted.button {
+            color: #333 !important;
+            box-shadow: 0 0 0 1px #999 inset !important;
+        }
+        body.theme-light .ui.basic.inverted.button:hover {
+            color: #000 !important;
+            box-shadow: 0 0 0 1px #666 inset !important;
+        }
+        #nav-theme-toggle { cursor: pointer; }
         .view { display: none; padding-top: 4.5rem; min-height: 100vh; }
         .view.active { display: block; }
         .view-inner { max-width: 1200px; margin: 0 auto; padding: 1.5rem 1rem; }
@@ -18,10 +76,10 @@
         #shows-grid .column { padding: 0.5rem !important; cursor: pointer; }
         #shows-grid .banner-wrap {
             position: relative; overflow: hidden; border-radius: 4px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.5);
+            box-shadow: 0 2px 8px var(--shadow);
             transition: transform 0.15s, box-shadow 0.15s;
         }
-        #shows-grid .banner-wrap:hover { transform: scale(1.02); box-shadow: 0 4px 16px rgba(0,0,0,0.7); }
+        #shows-grid .banner-wrap:hover { transform: scale(1.02); box-shadow: 0 4px 16px var(--shadow-strong); }
         #shows-grid .banner-wrap img { width: 100%; display: block; }
         #shows-grid .banner-wrap .status-badge {
             position: absolute; top: 6px; right: 6px;
@@ -48,9 +106,9 @@
         /* Notifications */
         #notif-area { position: fixed; top: 4.2rem; right: 1rem; z-index: 9999; width: 320px; }
         .notif-item {
-            background: #2d2d2d; border-left: 4px solid #21ba45;
+            background: var(--surface); border-left: 4px solid #21ba45;
             border-radius: 4px; padding: 10px 14px; margin-bottom: 8px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.5); animation: notif-in 0.2s ease;
+            box-shadow: 0 2px 8px var(--shadow); animation: notif-in 0.2s ease;
         }
         .notif-item.error { border-color: #db2828; }
         .notif-item.warning { border-color: #f2711c; }
@@ -62,19 +120,19 @@
         /* Episode table */
         .episode-table { width: 100%; }
         .episode-table td { padding: 6px 8px; vertical-align: middle; }
-        .episode-table .ep-num { color: #888; width: 3em; text-align: center; }
-        .episode-table .ep-date { color: #888; white-space: nowrap; width: 7em; }
+        .episode-table .ep-num { color: var(--muted); width: 3em; text-align: center; }
+        .episode-table .ep-date { color: var(--muted); white-space: nowrap; width: 7em; }
         .episode-table .ep-status { width: 2.5em; text-align: center; }
-        .episode-table tr:hover { background: rgba(255,255,255,0.05); cursor: pointer; }
+        .episode-table tr:hover { background: var(--hover); cursor: pointer; }
         .ep-dot { cursor: pointer; }
         .ep-dot:hover { opacity: 0.75; }
-        #ep-action-menu, #season-action-menu { position: fixed; background: #1e1e1e; border: 1px solid #444; border-radius: 4px;
-            box-shadow: 0 4px 14px rgba(0,0,0,0.7); z-index: 9999; min-width: 190px; display: none; }
-        #ep-action-menu .ep-menu-item, #season-action-menu .season-menu-item { padding: 9px 16px; cursor: pointer; font-size: 13px; border-bottom: 1px solid #333; }
+        #ep-action-menu, #season-action-menu { position: fixed; background: var(--surface-3); border: 1px solid var(--border); border-radius: 4px;
+            box-shadow: 0 4px 14px var(--shadow-strong); z-index: 9999; min-width: 190px; display: none; }
+        #ep-action-menu .ep-menu-item, #season-action-menu .season-menu-item { padding: 9px 16px; cursor: pointer; font-size: 13px; border-bottom: 1px solid var(--border-soft); }
         #ep-action-menu .ep-menu-item:last-child, #season-action-menu .season-menu-item:last-child { border-bottom: none; }
-        #ep-action-menu .ep-menu-item:hover, #season-action-menu .season-menu-item:hover { background: #2d2d2d; }
-        .season-menu-btn { font-size: 16px; color: #888; padding: 0 4px 0 12px; line-height: 1; cursor: pointer; flex-shrink: 0; }
-        .season-menu-btn:hover { color: #fff; }
+        #ep-action-menu .ep-menu-item:hover, #season-action-menu .season-menu-item:hover { background: var(--hover-strong); }
+        .season-menu-btn { font-size: 16px; color: var(--muted); padding: 0 4px 0 12px; line-height: 1; cursor: pointer; flex-shrink: 0; }
+        .season-menu-btn:hover { color: var(--text-strong); }
         #nav-configure.nav-current { background: rgba(255,255,255,0.08) !important; }
         #nav-configure > .menu { display: none; position: absolute; top: 100%; left: 0;
             background: #2d2d2d; border: 1px solid #555; border-radius: 4px;
@@ -83,63 +141,58 @@
         #nav-configure > .menu a.item:hover { background: rgba(255,255,255,0.1) !important; color: #fff !important; }
         #nav-search-input { color: #fff !important; }
         #nav-search-input::placeholder { color: rgba(255,255,255,0.5) !important; }
-        .ui.modal { background: #1e1e1e !important; color: #ddd !important; }
-        .ui.modal > .header { background: #2a2a2a !important; color: #fff !important; border-bottom: 1px solid #444 !important; }
-        .ui.modal > .content { background: #1e1e1e !important; color: #ddd !important; }
-        .ui.modal > .actions { background: #2a2a2a !important; border-top: 1px solid #444 !important; }
+        .ui.modal { background: var(--surface-3) !important; color: var(--text-body) !important; }
+        .ui.modal > .header { background: var(--surface-2) !important; color: var(--text-strong) !important; border-bottom: 1px solid var(--border) !important; }
+        .ui.modal > .content { background: var(--surface-3) !important; color: var(--text-body) !important; }
+        .ui.modal > .actions { background: var(--surface-2) !important; border-top: 1px solid var(--border) !important; }
         .season-header {
-            background: rgba(255,255,255,0.08); padding: 8px 14px;
+            background: var(--hover-strong); padding: 8px 14px;
             font-weight: bold; cursor: pointer; user-select: none;
             border-radius: 4px; margin: 0.5rem 0 0;
             display: flex; align-items: center; justify-content: space-between;
         }
-        .season-header:hover { background: rgba(255,255,255,0.12); }
+        .season-header:hover { background: var(--hover-stronger); }
         .season-body { overflow: hidden; }
 
         /* Settings form */
-        .settings-card { background:#2d2d2d; border-radius:6px; padding:1.5rem; margin-bottom:1rem; }
-        .settings-card h3 { margin-top:0; margin-bottom:1rem; font-size:15px; color:#fff; }
+        .settings-card { background:var(--surface); border-radius:6px; padding:1.5rem; margin-bottom:1rem; }
+        .settings-card h3 { margin-top:0; margin-bottom:1rem; font-size:15px; color:var(--text-strong); }
         .settings-field { margin-bottom: 1rem; }
-        .settings-field label { display: block; font-size: 12px; color: #aaa; margin-bottom: 4px; }
+        .settings-field label { display: block; font-size: 12px; color: var(--muted-soft); margin-bottom: 4px; }
         .settings-field input[type=text],
         .settings-field input[type=password],
         .settings-field input[type=number],
         .settings-field select {
-            background: #111; border: 1px solid #444; color: #eee;
+            background: var(--input-bg); border: 1px solid var(--border); color: var(--text-bright);
             border-radius: 4px; padding: 7px 10px; width: 100%; box-sizing: border-box;
         }
         .settings-radio-group { display: flex; gap: 8px; flex-wrap: wrap; }
         .settings-radio-group label {
             cursor: pointer; padding: 5px 14px; border-radius: 4px;
-            border: 1px solid #444; background: #2d2d2d; color: #eee;
+            border: 1px solid var(--border); background: var(--surface); color: var(--text-bright);
             font-size: 13px; transition: all 0.15s;
         }
         .settings-radio-group input { display: none; }
         .settings-radio-group input:checked + label { background: #2185d0; border-color: #2185d0; color: white; }
 
         /* Downloads */
-        .dl-progress-bar { background: #444; border-radius: 3px; height: 8px; overflow: hidden; min-width: 100px; }
+        .dl-progress-bar { background: var(--border); border-radius: 3px; height: 8px; overflow: hidden; min-width: 100px; }
         .dl-progress-bar .fill { background: #21ba45; height: 100%; transition: width 0.3s; }
-        .week-header { color: #888; font-size: 13px; padding: 12px 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
+        .week-header { color: var(--muted); font-size: 13px; padding: 12px 0 4px; text-transform: uppercase; letter-spacing: 0.5px; }
 
         /* Search results */
-        .search-result-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid #333; transition: background 0.1s; }
+        .search-result-item { padding: 10px 12px; cursor: pointer; border-bottom: 1px solid var(--border-soft); transition: background 0.1s; }
         .search-result-item:last-child { border-bottom: none; }
-        .search-result-item:hover { background: rgba(255,255,255,0.07); }
+        .search-result-item:hover { background: var(--hover-strong); }
         .search-result-item.selected { background: rgba(33,133,208,0.2); }
         .search-result-item .result-name { font-weight: bold; }
-        .search-result-item .result-meta { font-size: 12px; color: #888; margin-top: 2px; }
+        .search-result-item .result-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
 
-        /* Dark modal */
-        .ui.modal { background: #2d2d2d; color: #eee; }
-        .ui.modal > .header { background: #232323; color: #eee; border-color: #444; }
-        .ui.modal > .actions { background: #232323; border-color: #444; }
-
-        /* Inverted table */
-        .ui.table { background: transparent; color: #eee; border-color: #333; }
-        .ui.table thead th { background: rgba(255,255,255,0.08); color: #ccc; border-color: #333; }
-        .ui.table td { border-color: #333; }
-        .ui.table tr:hover td { background: rgba(255,255,255,0.04) !important; }
+        /* Themed table */
+        .ui.table { background: transparent; color: var(--text-bright); border-color: var(--border-soft); }
+        .ui.table thead th { background: var(--hover-strong); color: var(--text-soft); border-color: var(--border-soft); }
+        .ui.table td { border-color: var(--border-soft); }
+        .ui.table tr:hover td { background: var(--hover) !important; }
 
         /* Nav progress */
         #nav-progress-bar { margin: 0; min-width: 120px; }
@@ -149,16 +202,30 @@
         #show-banner-img { width: 100%; max-height: 200px; object-fit: cover;
                            border-radius: 6px; display: block; margin-bottom: 1rem; }
         #show-detail-name { font-size: 1.8rem; font-weight: bold; margin-bottom: 0.25rem; }
-        #show-overview { color: #aaa; font-size: 14px; margin-bottom: 1.5rem; line-height: 1.5; }
+        #show-overview { color: var(--muted-soft); font-size: 14px; margin-bottom: 1.5rem; line-height: 1.5; }
 
         /* Filter toggle */
         .filter-btn {
             padding: 6px 16px; border-radius: 4px; cursor: pointer;
-            background: transparent; border: 1px solid #555; color: #aaa;
+            background: transparent; border: 1px solid var(--border-strong); color: var(--muted-soft);
             font-size: 13px; transition: all 0.15s;
         }
         .filter-btn.active { background: #2185d0; border-color: #2185d0; color: white; }
-        .filter-btn:hover { border-color: #777; color: #ccc; }
+        .filter-btn:hover { border-color: var(--muted); color: var(--text-soft); }
+
+        /* Utility text classes (theme-aware) */
+        .text-muted { color: var(--muted) !important; }
+        .text-soft { color: var(--muted-soft) !important; }
+        .text-dim { color: var(--muted-dim) !important; }
+        .themed-select {
+            background: var(--surface); border: 1px solid var(--border); color: var(--text-bright);
+            border-radius: 4px; padding: 5px 8px; margin: 0 4px;
+        }
+        .themed-panel { background: var(--hover); border-radius: 4px; }
+        .themed-box { background: var(--surface); border: 1px solid var(--border); border-radius: 4px; }
+        .themed-hr { border-bottom: 1px solid var(--border-soft); }
+        /* Log console stays dark in both themes */
+        #log-output { background: #0d0d0d; color: #ccc; }
 
         @media (max-width: 600px) {
             #nav-progress, #menu-label-logo, #menu-label-configure { display: none !important; }
@@ -169,6 +236,11 @@
     </style>
 </head>
 <body>
+<script>
+    // Apply saved theme immediately to avoid a flash of the wrong theme.
+    if (localStorage.getItem('stagehand-theme') === 'light')
+        document.body.className = 'theme-light';
+</script>
 
 <!-- ============================================================ TOP NAV -->
 <div class="ui large inverted fixed menu" id="app-menu" style="background:#1a1a1a">
@@ -194,6 +266,9 @@
                     <a class="item" data-view="log" href="#/log"><i class="align justify icon"></i> Log</a>
                 </div>
             </div>
+            <a class="item" id="nav-theme-toggle" title="Toggle light/dark mode">
+                <i class="sun icon" id="theme-toggle-icon"></i>
+            </a>
             <div class="item" id="menu-search">
                 <div class="ui transparent inverted icon input">
                     <input id="nav-search-input" placeholder="Search shows..." type="text">
@@ -246,14 +321,14 @@
             <button class="ui button primary" id="add-search-btn">Search</button>
         </div>
         <div id="add-results-wrap" style="display:none; max-width:600px">
-            <div id="add-results-list" style="background:#2d2d2d; border:1px solid #444; border-radius:4px; margin-bottom:1rem"></div>
+            <div id="add-results-list" class="themed-box" style="margin-bottom:1rem"></div>
             <button class="ui primary button" id="btn-add-selected" disabled>
                 <i class="add icon"></i> Add Selected Series
             </button>
         </div>
         <div id="add-loading" style="display:none; padding:2rem">
             <div class="ui active inline loader"></div>
-            <span style="margin-left:1rem; color:#aaa">Searching...</span>
+            <span class="text-soft" style="margin-left:1rem">Searching...</span>
         </div>
     </div>
 
@@ -265,7 +340,7 @@
             </button>
             <div>
                 <div id="show-detail-name"></div>
-                <div id="show-detail-status" style="font-size:13px; color:#888"></div>
+                <div id="show-detail-status" class="text-muted" style="font-size:13px"></div>
             </div>
         </div>
         <img id="show-banner-img" src="" alt="" style="display:none">
@@ -300,7 +375,7 @@
                     <input type="checkbox" id="show-nosubdir-cb" style="width:auto">
                     <span id="show-nosubdir-label">No</span>
                 </label>
-                <div style="font-size:11px; color:#666; margin-top:2px">Save directly in TV root</div>
+                <div class="text-dim" style="font-size:11px; margin-top:2px">Save directly in TV root</div>
             </div>
         </div>
 
@@ -308,7 +383,7 @@
             <span>Advanced Settings</span>
             <i class="chevron right icon" id="show-adv-icon"></i>
         </div>
-        <div id="show-advanced" style="display:none; background:rgba(255,255,255,0.04); border-radius:4px; padding:1rem; margin-bottom:1rem">
+        <div id="show-advanced" class="themed-panel" style="display:none; padding:1rem; margin-bottom:1rem">
             <div style="display:flex; flex-wrap:wrap; gap:1rem">
                 <div class="settings-field" style="flex:1; min-width:180px">
                     <label>Provider</label>
@@ -345,7 +420,7 @@
             </button>
         </div>
 
-        <h3 style="border-bottom:1px solid #333; padding-bottom:0.5rem; margin-bottom:0.5rem">Episodes</h3>
+        <h3 class="themed-hr" style="padding-bottom:0.5rem; margin-bottom:0.5rem">Episodes</h3>
         <div id="show-seasons"></div>
     </div>
 </div>
@@ -358,12 +433,12 @@
             <div style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap">
                 <div>
                     Show
-                    <select id="dl-status-select" style="background:#2d2d2d; border:1px solid #444; color:#eee; border-radius:4px; padding:5px 8px; margin:0 4px">
+                    <select id="dl-status-select" class="themed-select">
                         <option value="have">Downloaded</option>
                         <option value="all">All</option>
                     </select>
                     from
-                    <select id="dl-weeks-select" style="background:#2d2d2d; border:1px solid #444; color:#eee; border-radius:4px; padding:5px 8px; margin:0 4px">
+                    <select id="dl-weeks-select" class="themed-select">
                         <option value="1">this week</option>
                         <option value="2">the last 2 weeks</option>
                         <option value="4">the last month</option>
@@ -433,7 +508,7 @@
                     <input type="checkbox" id="cfg-rename" style="width:auto">
                     Rename downloaded files using the format below
                 </label>
-                <div style="font-size:12px; color:#666; margin-top:4px">When unchecked, original filenames from the source are kept.</div>
+                <div class="text-dim" style="font-size:12px; margin-top:4px">When unchecked, original filenames from the source are kept.</div>
             </div>
             <div id="cfg-naming-fields">
             <div style="display:flex; gap:1rem; flex-wrap:wrap">
@@ -463,12 +538,12 @@
             <div class="settings-field">
                 <label>Episode Filename Format</label>
                 <input type="text" id="cfg-ep-format">
-                <div style="font-size:11px; color:#666; margin-top:4px">
+                <div class="text-dim" style="font-size:11px; margin-top:4px">
                     Variables: <code>{show}</code> <code>{code}</code> <code>{title}</code>
                 </div>
             </div>
-            <div style="font-size:12px; color:#aaa; margin-top:0.5rem">
-                Preview: <code id="cfg-naming-preview" style="color:#ccc"></code>
+            <div class="text-soft" style="font-size:12px; margin-top:0.5rem">
+                Preview: <code id="cfg-naming-preview"></code>
             </div>
             </div><!-- end cfg-naming-fields -->
             <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.75rem">
@@ -480,7 +555,7 @@
         <!-- Web Access -->
         <div class="settings-card">
             <h3>Web Access</h3>
-            <p style="color:#888; font-size:13px; margin-top:0">Optional HTTP basic auth. Leave blank to disable.</p>
+            <p class="text-muted" style="font-size:13px; margin-top:0">Optional HTTP basic auth. Leave blank to disable.</p>
             <div style="display:flex; gap:1rem; flex-wrap:wrap">
                 <div class="settings-field" style="flex:1; min-width:160px">
                     <label>Username</label>
@@ -521,7 +596,7 @@
         <!-- Episode Check Schedule -->
         <div class="settings-card">
             <h3>Episode Check Schedule</h3>
-            <p style="color:#888; font-size:13px; margin-bottom:1rem">
+            <p class="text-muted" style="font-size:13px; margin-bottom:1rem">
                 Hours when Stagehand searches for new episodes (minutes are randomized).
             </p>
             <div id="hours-checkboxes" style="display:grid; grid-template-columns:repeat(6,1fr); gap:6px; margin-bottom:1rem"></div>
@@ -559,15 +634,15 @@
                     <button class="filter-btn" data-level="INFO">Info+</button>
                     <button class="filter-btn" data-level="WARNING">Warnings+</button>
                 </div>
-                <label style="display:flex; align-items:center; gap:6px; font-size:13px; color:#aaa; cursor:pointer">
+                <label class="text-soft" style="display:flex; align-items:center; gap:6px; font-size:13px; cursor:pointer">
                     <input type="checkbox" id="log-autoscroll" checked style="width:auto"> Auto-scroll
                 </label>
                 <button class="ui button basic inverted" id="log-clear-btn" style="padding:6px 12px; font-size:13px">Clear</button>
             </div>
         </div>
-        <div id="log-output" style="background:#0d0d0d; color:#ccc; font-family:monospace; font-size:12px;
+        <div id="log-output" style="font-family:monospace; font-size:12px;
              padding:0.75rem; border-radius:4px; height:550px; overflow-y:auto; white-space:pre-wrap; word-break:break-all; border:1px solid #333"></div>
-        <div style="font-size:11px; color:#555; margin-top:4px" id="log-status">Connecting...</div>
+        <div class="text-dim" style="font-size:11px; margin-top:4px" id="log-status">Connecting...</div>
     </div>
 </div>
 
@@ -590,7 +665,7 @@
     <div class="header">Delete Series</div>
     <div class="content">
         <p>Are you sure you want to delete <strong id="modal-delete-name"></strong> from the database?</p>
-        <p style="color:#888; font-size:13px">No video files will be deleted.</p>
+        <p class="text-muted" style="font-size:13px">No video files will be deleted.</p>
     </div>
     <div class="actions">
         <button class="ui button" id="modal-delete-cancel">Cancel</button>
@@ -808,7 +883,7 @@ function loadLibrary() {
 function renderLibrary(shows) {
     var $grid = $('#shows-grid').empty();
     if (shows.length === 0) {
-        $grid.append('<div class="column" style="text-align:center; color:#888; padding:3rem 0"><a href="#/tv/add" style="color:#2185d0">Add your first TV series!</a></div>');
+        $grid.append('<div class="column text-muted" style="text-align:center; padding:3rem 0"><a href="#/tv/add" style="color:#2185d0">Add your first TV series!</a></div>');
         libraryLoaded = true;
         return;
     }
@@ -1142,7 +1217,7 @@ function setEpisodeStatus(showId, code, action) {
 
 function renderSeasons(seasons, showId) {
     var $c = $('#show-seasons').empty();
-    if (!seasons.length) { $c.html('<p style="color:#888">No episodes found.</p>'); return; }
+    if (!seasons.length) { $c.html('<p class="text-muted">No episodes found.</p>'); return; }
 
     for (var i = 0; i < seasons.length; i++) {
         var season = seasons[i];
@@ -1154,7 +1229,7 @@ function renderSeasons(seasons, showId) {
             allCodes.push(season.episodes[x].code);
         }
         var $hdr = $('<div>').addClass('season-header');
-        $hdr.append($('<span>').html(label + ' <span style="color:#888;font-weight:normal;font-size:13px">(' + haveCount + '/' + season.episodes.length + ' downloaded)</span>'));
+        $hdr.append($('<span>').html(label + ' <span class="text-muted" style="font-weight:normal;font-size:13px">(' + haveCount + '/' + season.episodes.length + ' downloaded)</span>'));
         var $menuBtn = $('<span>').addClass('season-menu-btn').attr('title', 'Season actions').html('&#8943;');
         (function(codes, $b) {
             $menuBtn.on('click', function(e) { e.stopPropagation(); showSeasonMenu(showId, codes, $b); });
@@ -1224,7 +1299,7 @@ function renderDownloads(data) {
     var queue = data.queue || [], episodes = data.episodes || [];
 
     if (!queue.length && !episodes.length) {
-        $c.html('<div style="text-align:center;padding:3rem;color:#888">No episodes match the selected criteria.</div>');
+        $c.html('<div class="text-muted" style="text-align:center;padding:3rem">No episodes match the selected criteria.</div>');
         return;
     }
 
@@ -1405,6 +1480,18 @@ $(document).ready(function() {
         navigate('/' + $(this).attr('data-view'));
     });
     $('#nav-logo, #menu-label-logo').on('click', function() { navigate('/tv'); });
+
+    // Light/dark theme toggle
+    function applyThemeIcon() {
+        var light = document.body.classList.contains('theme-light');
+        $('#theme-toggle-icon').attr('class', light ? 'moon icon' : 'sun icon');
+    }
+    applyThemeIcon();
+    $('#nav-theme-toggle').on('click', function() {
+        var light = document.body.classList.toggle('theme-light');
+        localStorage.setItem('stagehand-theme', light ? 'light' : 'dark');
+        applyThemeIcon();
+    });
 
     // Configure dropdown — manual impl to avoid Semantic UI .active class conflict
     var $cfgMenu = $('#nav-configure .menu');

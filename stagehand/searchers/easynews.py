@@ -117,7 +117,3 @@ def enable(manager):
     # http retriever is always enabled, so no special action is needed
     # when the easynews searcher is enabled.
     pass
-
-
-def get_config_template(manager):
-    return os.path.join(manager.paths.data, 'web', 'settings', 'easynews.tmpl')

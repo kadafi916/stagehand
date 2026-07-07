@@ -533,7 +533,7 @@ class Manager:
 
         msg = 'starting retrieval of %s %s' % (ep.series.name, ep.code)
         log.info(msg)
-        msg += '<br/><br/>Check progress of <a href="{{root}}/schedule/aired">active downloads</a>.'
+        msg += '<br/><br/>Check progress of <a href="#/downloads">active downloads</a>.'
         web.notify('alert', title='Episode Download', text=msg)
 
         for search_result in ep_results:

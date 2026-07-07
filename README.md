@@ -8,7 +8,8 @@ Stagehand is a TV series manager that automatically downloads new episodes and p
 
 ## Features
 
-- Dark single-page web UI — no page reloads, hash-based routing
+- Single-page web UI — no page reloads, hash-based routing
+- Dark and light themes — toggle with the sun/moon icon in the nav bar (persisted per browser)
 - Multiple metadata providers per series (TheTVDB and TVmaze)
 - Easynews HTTP global search (enabled by default)
 - Per-episode and per-season status management
