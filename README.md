@@ -57,11 +57,16 @@ searchers.easynews.password = your_password
 
 | Page | How to get there |
 |------|-----------------|
-| TV library | Click **TV Shows** in the nav bar |
+| TV library | Click **TV Shows** in the nav bar — toggle between banner grid and a sortable list view |
 | Add a series | Search box in the nav bar, or click **Add TV Show** |
 | Show detail & episodes | Click any banner in the library |
-| Downloads & history | Click **Downloads** in the nav bar |
+| Upcoming episodes | Click **Upcoming** — the next 7/14/30 days grouped by day |
+| Downloads | Click **Downloads** in the nav bar |
+| Download history | Click **History** — every completed download with time, quality, and size |
+| Statistics | Click **Stats** — show/episode counts, a 30-day download chart, disk usage, per-show totals |
 | Settings & log | Click **Configure** in the nav bar |
+
+Download history is recorded to `history.jsonl` next to the database from 0.4.18 onward, so the History page and download stats start accumulating from upgrade time.
 
 ### Episode status dots
 

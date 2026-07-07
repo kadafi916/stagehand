@@ -531,14 +531,160 @@ def shows_list():
             run_status = 'suspended'
         else:
             run_status = 'unknown'
+        have = total = 0
+        next_airdate = None
+        today = datetime.now().date()
+        for ep in series.episodes:
+            total += 1
+            if ep.status == ep.STATUS_HAVE:
+                have += 1
+            if ep.airdate:
+                airdate = ep.airdate.date() if hasattr(ep.airdate, 'date') else ep.airdate
+                if airdate >= today and (next_airdate is None or airdate < next_airdate):
+                    next_airdate = airdate
         shows.append({
             'id': series.id,
             'name': series.name,
             'status': run_status,
             'paused': series.cfg.paused,
             'needed': needed,
+            'have': have,
+            'total': total,
+            'next_airdate': next_airdate.strftime('%Y-%m-%d') if next_airdate else None,
         })
     return {'shows': shows}
+
+
+@web.get('/api/upcoming')
+def upcoming_list():
+    manager = web.request['stagehand.manager']
+    days_param = web.request.query.days
+    days = int(days_param) if days_param.isdigit() else 14
+    today = datetime.now().date()
+    horizon = today + timedelta(days=days)
+
+    episodes = []
+    for s in manager.tvdb.series:
+        if s.cfg.paused:
+            continue
+        for ep in s.episodes:
+            if not ep.airdate:
+                continue
+            airdate = ep.airdate.date() if hasattr(ep.airdate, 'date') else ep.airdate
+            if today <= airdate <= horizon:
+                dt = ep.airdatetime
+                episodes.append({
+                    'show_id': s.id,
+                    'show_name': s.name,
+                    'code': ep.code,
+                    'name': ep.name or '',
+                    'airdate': airdate.strftime('%Y-%m-%d'),
+                    'airtime': dt.strftime('%H:%M') if dt else None,
+                    'ignored': ep.status == ep.STATUS_IGNORE,
+                })
+    episodes.sort(key=lambda e: (e['airdate'], e['airtime'] or '', e['show_name']))
+    return {'episodes': episodes, 'days': days}
+
+
+@web.get('/api/history')
+def history_list():
+    import json as _json
+    manager = web.request['stagehand.manager']
+    limit_param = web.request.query.limit
+    limit = int(limit_param) if limit_param.isdigit() else 200
+    records = []
+    try:
+        with open(manager.history_file) as f:
+            lines = f.readlines()
+    except OSError:
+        lines = []
+    for line in lines[-limit:]:
+        try:
+            records.append(_json.loads(line))
+        except ValueError:
+            continue
+    records.reverse()
+    return {'records': records}
+
+
+@web.get('/api/stats')
+def stats():
+    import json as _json
+    import shutil
+    from ..config import config
+    manager = web.request['stagehand.manager']
+
+    shows_by_status = {'running': 0, 'ended': 0, 'suspended': 0, 'paused': 0, 'unknown': 0}
+    ep_counts = {'have': 0, 'needed': 0, 'ignored': 0, 'future': 0, 'total': 0}
+    per_show = []
+    for s in manager.tvdb.series:
+        if s.cfg.paused:
+            shows_by_status['paused'] += 1
+        elif s.status == Series.STATUS_RUNNING:
+            shows_by_status['running'] += 1
+        elif s.status == Series.STATUS_ENDED:
+            shows_by_status['ended'] += 1
+        elif s.status == Series.STATUS_SUSPENDED:
+            shows_by_status['suspended'] += 1
+        else:
+            shows_by_status['unknown'] += 1
+        have = 0
+        for ep in s.episodes:
+            ep_counts['total'] += 1
+            if ep.status == ep.STATUS_HAVE:
+                ep_counts['have'] += 1
+                have += 1
+            elif ep.status in (ep.STATUS_NEED, ep.STATUS_NEED_FORCED):
+                ep_counts['needed'] += 1
+            elif ep.status == ep.STATUS_IGNORE:
+                ep_counts['ignored'] += 1
+            elif not ep.aired:
+                ep_counts['future'] += 1
+        per_show.append({'id': s.id, 'name': s.name, 'have': have,
+                         'total': len(s.episodes)})
+    per_show.sort(key=lambda x: -x['have'])
+
+    # Downloads per day for the last 30 days, plus totals, from history.
+    daily = {}
+    total_downloads = 0
+    total_bytes = 0
+    cutoff = (datetime.now() - timedelta(days=30)).date()
+    try:
+        with open(manager.history_file) as f:
+            for line in f:
+                try:
+                    rec = _json.loads(line)
+                except ValueError:
+                    continue
+                total_downloads += 1
+                total_bytes += rec.get('size') or 0
+                day = (rec.get('ts') or '')[:10]
+                try:
+                    if datetime.strptime(day, '%Y-%m-%d').date() >= cutoff:
+                        daily[day] = daily.get(day, 0) + 1
+                except ValueError:
+                    continue
+    except OSError:
+        pass
+
+    try:
+        usage = shutil.disk_usage(os.path.expanduser(str(config.misc.tvdir)))
+        disk = {'free_gb': round(usage.free / 1024**3, 1),
+                'total_gb': round(usage.total / 1024**3, 1),
+                'used_pct': round(100.0 * (usage.total - usage.free) / usage.total, 1)}
+    except OSError:
+        disk = None
+
+    return {
+        'shows': shows_by_status,
+        'shows_total': len(manager.tvdb.series),
+        'episodes': ep_counts,
+        'per_show': per_show[:15],
+        'downloads_daily': daily,
+        'downloads_total': total_downloads,
+        'downloads_bytes': total_bytes,
+        'disk': disk,
+    }
 
 
 @web.get('/api/shows/<id>/detail')

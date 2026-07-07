@@ -229,9 +229,23 @@
         /* Log console stays dark in both themes */
         #log-output { background: #0d0d0d; color: #ccc; }
 
+        @media (max-width: 1000px) {
+            #menu-label-upcoming, #menu-label-history, #menu-label-stats, #menu-label-downloads { display: none !important; }
+        }
         @media (max-width: 600px) {
             #nav-progress, #menu-label-logo, #menu-label-configure { display: none !important; }
         }
+        /* Stats dashboard */
+        .stat-cards { display: flex; gap: 1rem; flex-wrap: wrap; margin-bottom: 1rem; }
+        .stat-card { background: var(--surface); border-radius: 6px; padding: 1rem 1.25rem; flex: 1; min-width: 150px; }
+        .stat-card .stat-value { font-size: 1.7rem; font-weight: bold; }
+        .stat-card .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+        .stat-card .stat-sub { font-size: 12px; color: var(--muted-soft); margin-top: 4px; }
+        .bar-chart { display: flex; align-items: flex-end; gap: 2px; height: 120px; }
+        .bar-chart .bar { flex: 1; background: #2185d0; border-radius: 2px 2px 0 0; min-height: 2px; position: relative; }
+        .bar-chart .bar:hover { background: #1678c2; }
+        .hbar { background: var(--hover-strong); border-radius: 3px; height: 10px; overflow: hidden; }
+        .hbar .fill { background: #21ba45; height: 100%; }
         @media (max-width: 450px) {
             #menu-search { display: none; }
         }
@@ -255,8 +269,17 @@
         <a class="item active" data-view="tv" id="nav-tv" href="#/tv">
             <i class="film icon"></i> TV Shows
         </a>
+        <a class="item" data-view="upcoming" id="nav-upcoming" href="#/upcoming">
+            <i class="calendar icon"></i> <span id="menu-label-upcoming">Upcoming</span>
+        </a>
         <a class="item" data-view="downloads" id="nav-downloads" href="#/downloads">
             <i class="download icon"></i> <span id="menu-label-downloads">Downloads</span>
+        </a>
+        <a class="item" data-view="history" id="nav-history" href="#/history">
+            <i class="history icon"></i> <span id="menu-label-history">History</span>
+        </a>
+        <a class="item" data-view="stats" id="nav-stats" href="#/stats">
+            <i class="bar chart icon"></i> <span id="menu-label-stats">Stats</span>
         </a>
         <div class="right menu" style="flex-shrink:0">
             <div class="ui dropdown item" id="nav-configure">
@@ -298,6 +321,8 @@
             <div style="display:flex; gap:6px">
                 <button class="filter-btn active" data-filter="all">All Shows</button>
                 <button class="filter-btn" data-filter="active">Active Only</button>
+                <button class="filter-btn" id="btn-lib-grid" title="Grid view" style="margin-left:12px"><i class="grid layout icon" style="margin:0"></i></button>
+                <button class="filter-btn" id="btn-lib-list" title="List view"><i class="list layout icon" style="margin:0"></i></button>
             </div>
             <button class="ui primary button" id="btn-add-show">
                 <i class="add icon"></i> Add TV Show
@@ -308,6 +333,7 @@
                 <div class="ui active inline loader"></div>
             </div>
         </div>
+        <div id="shows-list" style="display:none"></div>
     </div>
 
     <!-- Add Show -->
@@ -462,6 +488,46 @@
             <div style="text-align:center; padding:3rem">
                 <div class="ui active inline loader"></div>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ VIEW: UPCOMING -->
+<div id="view-upcoming" class="view">
+    <div class="view-inner">
+        <div style="display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:0.75rem; margin-bottom:1rem">
+            <h2 style="margin:0">Upcoming Episodes</h2>
+            <div>
+                Next
+                <select id="upcoming-days-select" class="themed-select">
+                    <option value="7">7 days</option>
+                    <option value="14" selected>14 days</option>
+                    <option value="30">30 days</option>
+                </select>
+            </div>
+        </div>
+        <div id="upcoming-content">
+            <div style="text-align:center; padding:3rem"><div class="ui active inline loader"></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ VIEW: HISTORY -->
+<div id="view-history" class="view">
+    <div class="view-inner">
+        <h2 style="margin:0 0 1rem">Download History</h2>
+        <div id="history-content">
+            <div style="text-align:center; padding:3rem"><div class="ui active inline loader"></div></div>
+        </div>
+    </div>
+</div>
+
+<!-- ============================================================ VIEW: STATS -->
+<div id="view-stats" class="view">
+    <div class="view-inner">
+        <h2 style="margin:0 0 1rem">Statistics</h2>
+        <div id="stats-content">
+            <div style="text-align:center; padding:3rem"><div class="ui active inline loader"></div></div>
         </div>
     </div>
 </div>
@@ -927,6 +993,155 @@ function notify(title, text, type) {
     setTimeout(function() { $n.fadeOut(400, function() { $n.remove(); }); }, 8000);
 }
 
+// ---------------------------------------------------------------- Upcoming
+function loadUpcoming() {
+    var days = $('#upcoming-days-select').val() || '14';
+    $.get(ROOT + '/api/upcoming', { days: days }, function(data) {
+        var $c = $('#upcoming-content').empty();
+        var eps = data.episodes || [];
+        if (!eps.length) {
+            $c.html('<div class="text-muted" style="text-align:center;padding:3rem">Nothing scheduled in the next ' + data.days + ' days.</div>');
+            return;
+        }
+        var todayStr = new Date().toISOString().slice(0, 10);
+        var tomorrow = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+        var lastDate = null, $tbl = null;
+        eps.forEach(function(ep) {
+            if (ep.airdate !== lastDate) {
+                lastDate = ep.airdate;
+                var label;
+                if (ep.airdate === todayStr) label = 'Today';
+                else if (ep.airdate === tomorrow) label = 'Tomorrow';
+                else {
+                    var d = new Date(ep.airdate + 'T00:00:00');
+                    label = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
+                }
+                $c.append($('<div>').addClass('week-header').text(label));
+                $tbl = $('<table>').addClass('ui table');
+                $c.append($tbl);
+            }
+            var $tr = $('<tr>');
+            if (ep.ignored) $tr.css('opacity', 0.45);
+            $tr.append($('<td>').css('width', '5em').text(ep.airtime || ''));
+            $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + ep.show_id).css('color', '#2185d0').text(ep.show_name)));
+            $tr.append($('<td>').css('width', '6em').text(ep.code));
+            $tr.append($('<td>').text(ep.name + (ep.ignored ? ' (ignored)' : '')));
+            $tbl.append($tr);
+        });
+    });
+}
+
+// ---------------------------------------------------------------- History
+function fmtSize(bytes) {
+    if (!bytes) return '';
+    if (bytes >= 1024 * 1024 * 1024) return (bytes / 1024 / 1024 / 1024).toFixed(2) + ' GB';
+    return Math.round(bytes / 1024 / 1024) + ' MB';
+}
+
+function loadHistory() {
+    $.get(ROOT + '/api/history', { limit: 500 }, function(data) {
+        var $c = $('#history-content').empty();
+        var recs = data.records || [];
+        if (!recs.length) {
+            $c.html('<div class="text-muted" style="text-align:center;padding:3rem">No downloads recorded yet. History starts accumulating from now on.</div>');
+            return;
+        }
+        var $tbl = $('<table>').addClass('ui table');
+        var $thead = $('<thead>').append($('<tr>')
+            .append($('<th>').text('When'))
+            .append($('<th>').text('Show'))
+            .append($('<th>').text('Episode'))
+            .append($('<th>').text('Title'))
+            .append($('<th>').text('Quality'))
+            .append($('<th>').text('Size')));
+        $tbl.append($thead);
+        var $tbody = $('<tbody>');
+        recs.forEach(function(r) {
+            var when = (r.ts || '').replace('T', ' ').slice(0, 16);
+            var $tr = $('<tr>');
+            $tr.append($('<td>').css('white-space', 'nowrap').text(when));
+            $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + r.show_id).css('color', '#2185d0').text(r.show)));
+            $tr.append($('<td>').text(r.code));
+            $tr.append($('<td>').text(r.title));
+            $tr.append($('<td>').text(r.quality));
+            $tr.append($('<td>').css('white-space', 'nowrap').text(fmtSize(r.size)));
+            $tbody.append($tr);
+        });
+        $tbl.append($tbody);
+        $c.append($tbl);
+    });
+}
+
+// ---------------------------------------------------------------- Stats
+function loadStats() {
+    $.get(ROOT + '/api/stats', function(d) {
+        var $c = $('#stats-content').empty();
+
+        var $cards = $('<div>').addClass('stat-cards');
+        function card(value, label, sub) {
+            var $card = $('<div>').addClass('stat-card');
+            $card.append($('<div>').addClass('stat-value').text(value));
+            $card.append($('<div>').addClass('stat-label').text(label));
+            if (sub) $card.append($('<div>').addClass('stat-sub').text(sub));
+            return $card;
+        }
+        var s = d.shows || {};
+        $cards.append(card(d.shows_total || 0, 'Shows',
+            (s.running || 0) + ' running, ' + (s.ended || 0) + ' ended' + (s.paused ? ', ' + s.paused + ' paused' : '')));
+        var e = d.episodes || {};
+        $cards.append(card(e.have || 0, 'Episodes Downloaded',
+            (e.needed || 0) + ' needed, ' + (e.future || 0) + ' upcoming'));
+        $cards.append(card(d.downloads_total || 0, 'Downloads Recorded',
+            d.downloads_bytes ? fmtSize(d.downloads_bytes) + ' total' : 'since history began'));
+        if (d.disk) {
+            $cards.append(card(d.disk.free_gb + ' GB', 'Free on TV Dir',
+                d.disk.used_pct + '% of ' + d.disk.total_gb + ' GB used'));
+        }
+        $c.append($cards);
+
+        // Downloads per day, last 30 days
+        var $chartCard = $('<div>').addClass('settings-card');
+        $chartCard.append($('<h3>').text('Downloads — Last 30 Days'));
+        var $chart = $('<div>').addClass('bar-chart');
+        var daily = d.downloads_daily || {};
+        var max = 1;
+        var days = [];
+        for (var i = 29; i >= 0; i--) {
+            var day = new Date(Date.now() - i * 86400000).toISOString().slice(0, 10);
+            var count = daily[day] || 0;
+            if (count > max) max = count;
+            days.push([day, count]);
+        }
+        days.forEach(function(pair) {
+            var $bar = $('<div>').addClass('bar')
+                .css('height', Math.round(100 * pair[1] / max) + '%')
+                .attr('title', pair[0] + ': ' + pair[1] + ' download' + (pair[1] !== 1 ? 's' : ''));
+            if (!pair[1]) $bar.css('background', 'var(--hover-strong)');
+            $chart.append($bar);
+        });
+        $chartCard.append($chart);
+        $c.append($chartCard);
+
+        // Top shows
+        var per = d.per_show || [];
+        if (per.length) {
+            var $topCard = $('<div>').addClass('settings-card');
+            $topCard.append($('<h3>').text('Episodes by Show'));
+            var maxHave = Math.max.apply(null, per.map(function(p) { return p.have; }).concat([1]));
+            per.forEach(function(p) {
+                var $row = $('<div>').css({ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '7px' });
+                $row.append($('<a>').attr('href', '#/tv/' + p.id).css({ color: '#2185d0', width: '220px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flexShrink: 0 }).text(p.name));
+                var $bar = $('<div>').addClass('hbar').css('flex', '1');
+                $bar.append($('<div>').addClass('fill').css('width', Math.round(100 * p.have / maxHave) + '%'));
+                $row.append($bar);
+                $row.append($('<span>').addClass('text-muted').css({ width: '70px', fontSize: '12px', textAlign: 'right', flexShrink: 0 }).text(p.have + ' / ' + p.total));
+                $topCard.append($row);
+            });
+            $c.append($topCard);
+        }
+    });
+}
+
 // ---------------------------------------------------------------- Router
 var stagehand;
 var libraryLoaded = false;
@@ -956,6 +1171,15 @@ function route() {
     } else if (view === 'downloads') {
         showView('downloads');
         loadDownloads();
+    } else if (view === 'upcoming') {
+        showView('upcoming');
+        loadUpcoming();
+    } else if (view === 'history') {
+        showView('history');
+        loadHistory();
+    } else if (view === 'stats') {
+        showView('stats');
+        loadStats();
     } else if (view === 'settings') {
         showView('settings');
     } else if (view === 'log') {
@@ -1002,16 +1226,87 @@ function showTvPage(page) {
 }
 
 // ---------------------------------------------------------------- TV Library
+var libraryShows = null;
+var listSortKey = 'name', listSortDir = 1;
+
 function loadLibrary() {
-    if (libraryLoaded) return;
+    if (libraryLoaded) { renderLibraryView(); return; }
     var savedFilter = localStorage.getItem('showsFilter') || 'all';
-    setFilter(savedFilter);
+    $('.filter-btn[data-filter]').removeClass('active');
+    $('.filter-btn[data-filter="' + savedFilter + '"]').addClass('active');
 
     $.get(ROOT + '/api/shows', function(data) {
-        renderLibrary(data.shows || []);
+        libraryShows = data.shows || [];
+        libraryLoaded = true;
+        renderLibraryView();
     }).fail(function() {
         notify('Error', 'Failed to load TV library.', 'error');
     });
+}
+
+function renderLibraryView() {
+    var mode = localStorage.getItem('libraryView') || 'grid';
+    $('#btn-lib-grid').toggleClass('active', mode === 'grid');
+    $('#btn-lib-list').toggleClass('active', mode === 'list');
+    if (mode === 'list') {
+        $('#shows-grid').hide();
+        $('#shows-list').show();
+        renderLibraryList(libraryShows || []);
+    } else {
+        $('#shows-list').hide();
+        $('#shows-grid').show();
+        renderLibrary(libraryShows || []);
+    }
+}
+
+function renderLibraryList(shows) {
+    var $c = $('#shows-list').empty();
+    var filter = localStorage.getItem('showsFilter') || 'all';
+    var visible = shows.filter(function(s) {
+        return filter !== 'active' || (s.status === 'running' && !s.paused);
+    });
+    if (!visible.length) {
+        $c.html('<div class="text-muted" style="text-align:center;padding:3rem">No shows to display.</div>');
+        return;
+    }
+    var cols = [
+        ['name', 'Name'], ['status', 'Status'], ['have', 'Downloaded'],
+        ['needed', 'Needed'], ['next_airdate', 'Next Episode'],
+    ];
+    visible.sort(function(a, b) {
+        var av = a[listSortKey], bv = b[listSortKey];
+        if (av == null) return 1;
+        if (bv == null) return -1;
+        if (typeof av === 'string') { av = av.toLowerCase(); bv = String(bv).toLowerCase(); }
+        return (av < bv ? -1 : av > bv ? 1 : 0) * listSortDir;
+    });
+    var $tbl = $('<table>').addClass('ui table');
+    var $hr = $('<tr>');
+    cols.forEach(function(col) {
+        var arrow = listSortKey === col[0] ? (listSortDir > 0 ? ' ▴' : ' ▾') : '';
+        var $th = $('<th>').css('cursor', 'pointer').text(col[1] + arrow);
+        $th.on('click', function() {
+            if (listSortKey === col[0]) listSortDir = -listSortDir;
+            else { listSortKey = col[0]; listSortDir = 1; }
+            renderLibraryList(shows);
+        });
+        $hr.append($th);
+    });
+    $tbl.append($('<thead>').append($hr));
+    var $tbody = $('<tbody>');
+    var statusLabels = { running: 'Running', ended: 'Ended', suspended: 'Suspended', paused: 'Paused', unknown: '' };
+    visible.forEach(function(s) {
+        var $tr = $('<tr>').css('cursor', 'pointer');
+        $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + s.id).css('color', '#2185d0').text(s.name)));
+        $tr.append($('<td>').text(s.paused ? 'Paused' : (statusLabels[s.status] || '')));
+        $tr.append($('<td>').text(s.have + ' / ' + s.total));
+        $tr.append($('<td>').text(s.needed || ''));
+        $tr.append($('<td>').text(s.next_airdate || ''));
+        (function(id) { $tr.on('click', function() { navigate('/tv/' + id); }); })(s.id);
+        $tbody.append($tr);
+    });
+    $tbl.append($tbody);
+    $c.append($tbl);
 }
 
 function renderLibrary(shows) {
@@ -1061,14 +1356,14 @@ function renderLibrary(shows) {
 
 function setFilter(filter) {
     localStorage.setItem('showsFilter', filter);
-    $('.filter-btn').removeClass('active');
+    $('.filter-btn[data-filter]').removeClass('active');
     $('.filter-btn[data-filter="' + filter + '"]').addClass('active');
-    if (libraryLoaded) {
-        $('#shows-grid .column').each(function() {
-            var isActive = $(this).attr('data-active') === 'true';
-            $(this).toggle(filter !== 'active' || isActive);
-        });
-    }
+    if (libraryLoaded) renderLibraryView();
+}
+
+function setLibraryView(mode) {
+    localStorage.setItem('libraryView', mode);
+    if (libraryLoaded) renderLibraryView();
 }
 
 // ---------------------------------------------------------------- Add Show
@@ -1638,7 +1933,9 @@ $(document).ready(function() {
     $(document).on('click.cfgmenu', function() { $cfgMenu.hide(); });
 
     // Filter buttons
-    $('.filter-btn').on('click', function() { setFilter($(this).attr('data-filter')); });
+    $('.filter-btn[data-filter]').on('click', function() { setFilter($(this).attr('data-filter')); });
+    $('#btn-lib-grid').on('click', function() { setLibraryView('grid'); });
+    $('#btn-lib-list').on('click', function() { setLibraryView('list'); });
 
     // Add show button
     $('#btn-add-show').on('click', function() { navigate('/tv/add'); });
@@ -1900,6 +2197,7 @@ $(document).ready(function() {
 
     // Downloads controls
     $('#dl-status-select, #dl-weeks-select').on('change', loadDownloads);
+    $('#upcoming-days-select').on('change', loadUpcoming);
     $('#btn-check-episodes, #btn-check-all').on('click', function() {
         var $b = $(this).prop('disabled', true);
         stagehand.api('/api/shows/check')

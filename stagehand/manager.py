@@ -514,6 +514,36 @@ class Manager:
                     web.notify('alert', title='Download Failed', text=msg % strerror, type='error')
 
 
+    @property
+    def history_file(self):
+        return os.path.join(os.path.dirname(self.paths.db), 'history.jsonl')
+
+
+    def _record_history(self, ep, search_result):
+        """
+        Append a completed download to the history file (one JSON object per line).
+        """
+        import json
+        record = {
+            'ts': datetime.now().astimezone().isoformat(timespec='seconds'),
+            'show': ep.series.name,
+            'show_id': ep.series.id,
+            'code': ep.code,
+            'season': ep.season.number,
+            'episode': ep.number,
+            'title': ep.name or '',
+            'filename': ep.filename or '',
+            'size': search_result.size or 0,
+            'quality': search_result.quality or '',
+            'searcher': search_result.searcher or '',
+        }
+        try:
+            with open(self.history_file, 'a') as f:
+                f.write(json.dumps(record) + '\n')
+        except OSError as e:
+            log.error('could not write download history: %s', e.strerror)
+
+
     async def _get_episode(self, ep, ep_results):
         """
         Initiate the retriever plugin for the given search result.
@@ -585,6 +615,7 @@ class Manager:
             else:
                 log.info('successfully retrieved %s %s', ep.series.name, ep.code)
                 ep.status = ep.STATUS_HAVE
+                self._record_history(ep, search_result)
                 web.notify('alert', title='Download Complete',
                            text='%s %s downloaded successfully.' % (ep.series.name, ep.code))
                 return True
