@@ -1,6 +1,6 @@
 # Stagehand
 
-**Requires an [Easynews](https://easynews.com) account. Generic NNTP is not supported yet.**
+**Requires an [Easynews](https://easynews.com) account. Easynews is the only supported backend, by design — NZB/generic NNTP and BitTorrent support are out of scope.**
 
 Stagehand is a TV series manager that automatically downloads new episodes and provides a web UI for managing your collection.
 
@@ -127,10 +127,9 @@ The quality setting controls both the minimum acceptable file size and which res
 
 ---
 
-## What's missing
+## Known limitations
 
-- NZB / generic NNTP support (non-Easynews Usenet)
-- BitTorrent
-- Import of an existing TV library
 - Timezone-aware airdate handling (airtimes are compared against server local time)
 - Various minor FIXMEs and TODOs in the source
+
+NZB/generic NNTP, BitTorrent, and import of an existing TV library are intentionally out of scope and will not be implemented.
