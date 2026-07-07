@@ -1,0 +1,10 @@
+<?xml version="1.0"?>
+<config>
+    <desc lang='en'>Home Assistant notifier</desc>
+    <var name='url' type='str'>
+        <desc>
+            Home Assistant webhook URL, e.g.
+            http://homeassistant.local:8123/api/webhook/stagehand
+        </desc>
+    </var>
+</config>

@@ -15,6 +15,8 @@ Stagehand is a TV series manager that automatically downloads new episodes and p
 - Per-episode and per-season status management
 - Live log streaming in the browser
 - Full settings UI — no config file editing required for common options
+- Home Assistant integration — status sensors via `/api/status` and per-episode webhook events
+- Email and Kodi notifications on download completion
 - Python 3.11+ (Docker image uses Python 3.13)
 
 ---
@@ -111,8 +113,117 @@ All common settings are available under **Configure → Settings**. Every sectio
 | File Naming | Optional rename toggle; when enabled: word separator, episode code style (`s01e02` / `1x02`), season directory format, episode filename format with live preview. Disable rename to keep original source filenames. |
 | Web Access | Optional HTTP basic auth (username + password) |
 | Easynews | Username and password |
+| Home Assistant | Enable toggle + webhook URL (see Home Assistant integration below) |
+| Email Notifications | Enable toggle, SMTP host/port/SSL, optional auth, sender, recipients |
+| Kodi | Enable toggle, hostname, HTTP/TCP ports, on-screen notification, per-show library update, path remapping |
 | Episode Check Schedule | Checkboxes for each hour of the day; quick-select All / None / Every 2h / Every 4h |
 | System | Trigger an immediate episode check |
+
+When a notifier is enabled, it fires after episodes finish downloading: Home Assistant gets one webhook event per episode, Email gets a summary message per batch, and Kodi gets an on-screen notification plus a library refresh.
+
+---
+
+## Home Assistant integration
+
+There are two halves, usable independently: **sensors** (Home Assistant polls Stagehand) and **events** (Stagehand pushes to Home Assistant when an episode is downloaded).
+
+### Sensors
+
+Stagehand exposes an aggregate status document at `GET /api/status`:
+
+```json
+{
+  "version": "0.4.14",
+  "downloads": { "active": 1, "queued": 2, "speed_kbps": 4200,
+                 "current": [{ "show": "...", "code": "s01e01", "percent": 42.0,
+                               "mb_done": 800.0, "mb_total": 1900.0, "speed_kbps": 4200 }] },
+  "episodes": { "needed": 3, "airing_today": 2, "airing_today_list": [ ... ],
+                "downloaded_today": 1, "downloaded_this_week": 5 },
+  "shows": { "count": 12, "paused": 1 },
+  "next_check": "2026-07-06T18:34:00-04:00",
+  "tvdir_free_gb": 512.3,
+  "easynews_ok": true
+}
+```
+
+Add a RESTful sensor group to Home Assistant's `configuration.yaml` (one HTTP request feeds all sensors):
+
+```yaml
+rest:
+  - resource: http://YOUR_NAS:8088/api/status
+    scan_interval: 60
+    # If you enabled Web Access auth in Stagehand:
+    # authentication: basic
+    # username: !secret stagehand_user
+    # password: !secret stagehand_pass
+    sensor:
+      - name: Stagehand Active Downloads
+        value_template: "{{ value_json.downloads.active }}"
+      - name: Stagehand Queued Downloads
+        value_template: "{{ value_json.downloads.queued }}"
+      - name: Stagehand Download Speed
+        value_template: "{{ value_json.downloads.speed_kbps }}"
+        unit_of_measurement: "kB/s"
+      - name: Stagehand Episodes Needed
+        value_template: "{{ value_json.episodes.needed }}"
+      - name: Stagehand Airing Today
+        value_template: "{{ value_json.episodes.airing_today }}"
+        json_attributes_path: "$.episodes"
+        json_attributes: ["airing_today_list"]
+      - name: Stagehand Downloaded This Week
+        value_template: "{{ value_json.episodes.downloaded_this_week }}"
+      - name: Stagehand Next Check
+        value_template: "{{ value_json.next_check }}"
+        device_class: timestamp
+      - name: Stagehand TV Free Space
+        value_template: "{{ value_json.tvdir_free_gb }}"
+        unit_of_measurement: "GB"
+    binary_sensor:
+      - name: Stagehand Downloading
+        value_template: "{{ value_json.downloads.active > 0 }}"
+        device_class: running
+      - name: Stagehand Easynews OK
+        value_template: "{{ value_json.easynews_ok != false }}"
+        device_class: problem
+```
+
+`downloaded_today` / `downloaded_this_week` count downloaded episodes by their air date. `easynews_ok` is `null` until the first search after startup, then `true`/`false` based on whether Easynews accepted your credentials.
+
+### Events (webhook)
+
+1. In Home Assistant, create an automation with a **Webhook** trigger and choose an ID, e.g. `stagehand`. The webhook URL is then `http://YOUR_HA:8123/api/webhook/stagehand`.
+2. In Stagehand, go to **Configure → Settings → Home Assistant**, check **Enabled**, paste the webhook URL, and click Save.
+
+Each downloaded episode sends a JSON POST:
+
+```json
+{
+  "event": "episode_downloaded",
+  "show": "Some Show",
+  "code": "s01e04",
+  "season": 1,
+  "episode": 4,
+  "title": "Episode Title",
+  "filename": "Some.Show.s01e04.mkv",
+  "overview": "..."
+}
+```
+
+Example automation — announce a download on a media player:
+
+```yaml
+automation:
+  - alias: Stagehand episode downloaded
+    triggers:
+      - trigger: webhook
+        webhook_id: stagehand
+        local_only: true
+    actions:
+      - action: notify.mobile_app_your_phone
+        data:
+          title: "Episode downloaded"
+          message: "{{ trigger.json.show }} {{ trigger.json.code }} — {{ trigger.json.title }}"
+```
 
 ### Quality preference
 

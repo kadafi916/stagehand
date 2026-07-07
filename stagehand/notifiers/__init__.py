@@ -6,7 +6,7 @@ from ..config import config
 from .base import NotifierError
 
 log = logging.getLogger('stagehand.notifiers')
-plugins, broken_plugins = load_plugins('notifiers', ['email', 'xbmc'])
+plugins, broken_plugins = load_plugins('notifiers', ['email', 'xbmc', 'homeassistant'])
 
 async def start(manager):
     """

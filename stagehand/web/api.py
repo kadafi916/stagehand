@@ -301,6 +301,79 @@ def set_general_settings():
     )
     return {'ok': True, 'example': example}
 
+@web.get('/api/settings/notifiers')
+def get_notifier_settings():
+    from ..config import config
+    enabled = [str(n) for n in config.notifiers.enabled]
+    return {
+        'homeassistant_enabled': 'homeassistant' in enabled,
+        'homeassistant_url':     str(config.notifiers.homeassistant.url),
+        'email_enabled':         'email' in enabled,
+        'email_hostname':        str(config.notifiers.email.hostname),
+        'email_port':            int(config.notifiers.email.port),
+        'email_ssl':             bool(config.notifiers.email.ssl),
+        'email_username':        str(config.notifiers.email.username),
+        'email_password':        str(config.notifiers.email.password),
+        'email_sender':          str(config.notifiers.email.sender),
+        'email_recipients':      str(config.notifiers.email.recipients),
+        'kodi_enabled':          'xbmc' in enabled,
+        'kodi_hostname':         str(config.notifiers.xbmc.hostname),
+        'kodi_http_port':        int(config.notifiers.xbmc.http_port),
+        'kodi_tcp_port':         int(config.notifiers.xbmc.tcp_port),
+        'kodi_notify':           bool(config.notifiers.xbmc.notify),
+        'kodi_individual':       bool(config.notifiers.xbmc.individual),
+        'kodi_tvdir':            str(config.notifiers.xbmc.tvdir),
+    }
+
+@web.post('/api/settings/notifiers')
+def set_notifier_settings():
+    from ..config import config
+    d = web.request.json or {}
+
+    def _bool(v):
+        return v if isinstance(v, bool) else str(v).lower() not in ('false', '0', 'no', '')
+
+    def _set(attr, val, cast=str):
+        if val is not None:
+            parts = attr.split('.')
+            obj = config
+            for p in parts[:-1]:
+                obj = getattr(obj, p)
+            setattr(obj, parts[-1], cast(val))
+
+    _set('notifiers.homeassistant.url', d.get('homeassistant_url'))
+    _set('notifiers.email.hostname',    d.get('email_hostname'))
+    _set('notifiers.email.port',        d.get('email_port'), int)
+    _set('notifiers.email.ssl',         d.get('email_ssl'), _bool)
+    _set('notifiers.email.username',    d.get('email_username'))
+    _set('notifiers.email.password',    d.get('email_password'))
+    _set('notifiers.email.sender',      d.get('email_sender'))
+    _set('notifiers.email.recipients',  d.get('email_recipients'))
+    _set('notifiers.xbmc.hostname',     d.get('kodi_hostname'))
+    _set('notifiers.xbmc.http_port',    d.get('kodi_http_port'), int)
+    _set('notifiers.xbmc.tcp_port',     d.get('kodi_tcp_port'), int)
+    _set('notifiers.xbmc.notify',       d.get('kodi_notify'), _bool)
+    _set('notifiers.xbmc.individual',   d.get('kodi_individual'), _bool)
+    _set('notifiers.xbmc.tvdir',        d.get('kodi_tvdir'))
+
+    # Update the enabled plugin list based on the per-plugin toggles.
+    enabled = [str(n) for n in config.notifiers.enabled]
+    for key, plugin in (('homeassistant_enabled', 'homeassistant'),
+                        ('email_enabled', 'email'),
+                        ('kodi_enabled', 'xbmc')):
+        if d.get(key) is None:
+            continue
+        if _bool(d[key]):
+            if plugin not in enabled:
+                enabled.append(plugin)
+        elif plugin in enabled:
+            enabled.remove(plugin)
+    config.notifiers.enabled = enabled
+
+    config.save()
+    return {'ok': True}
+
+
 @web.get('/api/settings/check-hours')
 def get_check_hours():
     from ..config import config
@@ -334,6 +407,97 @@ def shutdown():
 @web.get('/api/pid')
 def pid():
     return {'pid': os.getpid()}
+
+
+@web.get('/api/status')
+def api_status():
+    """
+    Aggregate status endpoint, designed for external monitoring such as a
+    Home Assistant RESTful sensor.
+    """
+    import shutil
+    from .. import __version__
+    from ..config import config
+    manager = web.request['stagehand.manager']
+
+    active = []
+    queued = 0
+    speed_kbps = 0
+    for ep, results in manager.retrieve_queue:
+        task = manager.get_episode_retrieve_task(ep)
+        if task:
+            entry = {'show': ep.series.name, 'code': ep.code, 'name': ep.name or ''}
+            if hasattr(task, 'progress') and task.progress:
+                entry.update({
+                    'percent': round(task.progress.percentage, 1),
+                    'mb_done': round(task.progress.pos / 1024 / 1024, 1),
+                    'mb_total': round(task.progress.max / 1024 / 1024, 1),
+                    'speed_kbps': int(task.progress.speed / 1024),
+                })
+                speed_kbps += int(task.progress.speed / 1024)
+            active.append(entry)
+        else:
+            queued += 1
+
+    today = datetime.now().date()
+    week_start = today - timedelta(days=today.weekday())
+    needed = 0
+    upcoming_today = []
+    downloaded_today = downloaded_this_week = 0
+    shows_paused = 0
+    for s in manager.tvdb.series:
+        if s.cfg.paused:
+            shows_paused += 1
+        for ep in s.episodes:
+            if ep.status in (ep.STATUS_NEED, ep.STATUS_NEED_FORCED):
+                needed += 1
+            elif ep.status == ep.STATUS_HAVE and ep.airdate:
+                airdate = ep.airdate.date() if hasattr(ep.airdate, 'date') else ep.airdate
+                if airdate == today:
+                    downloaded_today += 1
+                if airdate >= week_start:
+                    downloaded_this_week += 1
+            if ep.airdate and ep.status != ep.STATUS_IGNORE:
+                airdate = ep.airdate.date() if hasattr(ep.airdate, 'date') else ep.airdate
+                if airdate == today:
+                    upcoming_today.append({'show': s.name, 'code': ep.code, 'name': ep.name or ''})
+
+    try:
+        usage = shutil.disk_usage(os.path.expanduser(str(config.misc.tvdir)))
+        tvdir_free_gb = round(usage.free / 1024**3, 1)
+    except OSError:
+        tvdir_free_gb = None
+
+    try:
+        from ..searchers import easynews
+        easynews_ok = easynews.last_auth_ok
+    except ImportError:
+        easynews_ok = None
+
+    next_check = manager.next_episode_check
+    return {
+        'version': __version__,
+        'downloads': {
+            'active': len(active),
+            'queued': queued,
+            'speed_kbps': speed_kbps,
+            'current': active,
+        },
+        'episodes': {
+            'needed': needed,
+            'airing_today': len(upcoming_today),
+            'airing_today_list': upcoming_today,
+            'downloaded_today': downloaded_today,
+            'downloaded_this_week': downloaded_this_week,
+        },
+        'shows': {
+            'count': len(manager.tvdb.series),
+            'paused': shows_paused,
+        },
+        'next_check': next_check.astimezone().isoformat() if next_check else None,
+        'tvdir_free_gb': tvdir_free_gb,
+        'easynews_ok': easynews_ok,
+    }
 
 
 @web.get('/api/log')

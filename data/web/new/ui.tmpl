@@ -593,6 +593,124 @@
             </div>
         </div>
 
+        <!-- Home Assistant notifier -->
+        <div class="settings-card">
+            <h3>Home Assistant</h3>
+            <p class="text-muted" style="font-size:13px; margin-top:0">
+                Sends a webhook event to Home Assistant for each downloaded episode.
+                Live status is always available at <code>/api/status</code> regardless of this setting.
+            </p>
+            <div class="settings-field">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+                    <input type="checkbox" id="cfg-ha-enabled" style="width:auto"> Enabled
+                </label>
+            </div>
+            <div class="settings-field">
+                <label>Webhook URL</label>
+                <input type="text" id="cfg-ha-url" placeholder="http://homeassistant.local:8123/api/webhook/stagehand" autocomplete="off">
+            </div>
+            <div style="display:flex; align-items:center; gap:0.75rem">
+                <button class="ui button" id="btn-save-ha">Save</button>
+                <span id="ha-status" style="font-size:12px; color:#4caf50"></span>
+            </div>
+        </div>
+
+        <!-- Email notifier -->
+        <div class="settings-card">
+            <h3>Email Notifications</h3>
+            <p class="text-muted" style="font-size:13px; margin-top:0">
+                Sends a summary email when episodes are downloaded.
+            </p>
+            <div class="settings-field">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+                    <input type="checkbox" id="cfg-email-enabled" style="width:auto"> Enabled
+                </label>
+            </div>
+            <div style="display:flex; gap:1rem; flex-wrap:wrap">
+                <div class="settings-field" style="flex:2; min-width:180px">
+                    <label>SMTP Hostname</label>
+                    <input type="text" id="cfg-email-host" autocomplete="off">
+                </div>
+                <div class="settings-field" style="flex:1; min-width:100px">
+                    <label>Port</label>
+                    <input type="number" id="cfg-email-port" min="1" max="65535">
+                </div>
+                <div class="settings-field" style="flex:1; min-width:120px">
+                    <label>&nbsp;</label>
+                    <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+                        <input type="checkbox" id="cfg-email-ssl" style="width:auto"> Use SSL
+                    </label>
+                </div>
+            </div>
+            <div style="display:flex; gap:1rem; flex-wrap:wrap">
+                <div class="settings-field" style="flex:1; min-width:160px">
+                    <label>Username (optional)</label>
+                    <input type="text" id="cfg-email-user" autocomplete="off">
+                </div>
+                <div class="settings-field" style="flex:1; min-width:160px">
+                    <label>Password (optional)</label>
+                    <input type="password" id="cfg-email-pass" autocomplete="new-password">
+                </div>
+            </div>
+            <div style="display:flex; gap:1rem; flex-wrap:wrap">
+                <div class="settings-field" style="flex:1; min-width:180px">
+                    <label>Sender Address</label>
+                    <input type="text" id="cfg-email-sender" autocomplete="off">
+                </div>
+                <div class="settings-field" style="flex:1; min-width:180px">
+                    <label>Recipients (comma-separated)</label>
+                    <input type="text" id="cfg-email-recipients" autocomplete="off">
+                </div>
+            </div>
+            <div style="display:flex; align-items:center; gap:0.75rem">
+                <button class="ui button" id="btn-save-email">Save</button>
+                <span id="email-status" style="font-size:12px; color:#4caf50"></span>
+            </div>
+        </div>
+
+        <!-- Kodi notifier -->
+        <div class="settings-card">
+            <h3>Kodi</h3>
+            <p class="text-muted" style="font-size:13px; margin-top:0">
+                Shows an on-screen notification and refreshes the Kodi library when episodes are downloaded.
+            </p>
+            <div class="settings-field">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer">
+                    <input type="checkbox" id="cfg-kodi-enabled" style="width:auto"> Enabled
+                </label>
+            </div>
+            <div style="display:flex; gap:1rem; flex-wrap:wrap">
+                <div class="settings-field" style="flex:2; min-width:180px">
+                    <label>Hostname</label>
+                    <input type="text" id="cfg-kodi-host" autocomplete="off">
+                </div>
+                <div class="settings-field" style="flex:1; min-width:100px">
+                    <label>HTTP Port</label>
+                    <input type="number" id="cfg-kodi-http-port" min="1" max="65535">
+                </div>
+                <div class="settings-field" style="flex:1; min-width:100px">
+                    <label>TCP Port</label>
+                    <input type="number" id="cfg-kodi-tcp-port" min="1" max="65535">
+                </div>
+            </div>
+            <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:0.5rem">
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px">
+                    <input type="checkbox" id="cfg-kodi-notify" style="width:auto"> On-screen notification
+                </label>
+                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px">
+                    <input type="checkbox" id="cfg-kodi-individual" style="width:auto"> Per-show library update
+                </label>
+            </div>
+            <div class="settings-field">
+                <label>Kodi's Path to TV Directory (optional, for path remapping)</label>
+                <input type="text" id="cfg-kodi-tvdir" autocomplete="off">
+            </div>
+            <div style="display:flex; align-items:center; gap:0.75rem">
+                <button class="ui button" id="btn-save-kodi">Save</button>
+                <span id="kodi-status" style="font-size:12px; color:#4caf50"></span>
+            </div>
+        </div>
+
         <!-- Episode Check Schedule -->
         <div class="settings-card">
             <h3>Episode Check Schedule</h3>
@@ -1648,7 +1766,70 @@ $(document).ready(function() {
             });
         });
 
+        // Notifier settings (Home Assistant / Email / Kodi)
+        function loadNotifierSettings() {
+            $.get(ROOT + '/api/settings/notifiers', function(d) {
+                $('#cfg-ha-enabled').prop('checked', !!d.homeassistant_enabled);
+                $('#cfg-ha-url').val(d.homeassistant_url || '');
+                $('#cfg-email-enabled').prop('checked', !!d.email_enabled);
+                $('#cfg-email-host').val(d.email_hostname || '');
+                $('#cfg-email-port').val(d.email_port || 587);
+                $('#cfg-email-ssl').prop('checked', !!d.email_ssl);
+                $('#cfg-email-user').val(d.email_username || '');
+                $('#cfg-email-pass').val(d.email_password || '');
+                $('#cfg-email-sender').val(d.email_sender || '');
+                $('#cfg-email-recipients').val(d.email_recipients || '');
+                $('#cfg-kodi-enabled').prop('checked', !!d.kodi_enabled);
+                $('#cfg-kodi-host').val(d.kodi_hostname || '');
+                $('#cfg-kodi-http-port').val(d.kodi_http_port || 8080);
+                $('#cfg-kodi-tcp-port').val(d.kodi_tcp_port || 9090);
+                $('#cfg-kodi-notify').prop('checked', !!d.kodi_notify);
+                $('#cfg-kodi-individual').prop('checked', !!d.kodi_individual);
+                $('#cfg-kodi-tvdir').val(d.kodi_tvdir || '');
+            });
+        }
+
+        function postNotifierSettings(payload, statusSel) {
+            $.ajax({ url: ROOT + '/api/settings/notifiers', method: 'POST',
+                contentType: 'application/json', data: JSON.stringify(payload) })
+                .done(function() { showSectionStatus(statusSel, true, 'Saved'); })
+                .fail(function() { showSectionStatus(statusSel, false, 'Save failed'); });
+        }
+
+        $('#btn-save-ha').on('click', function() {
+            postNotifierSettings({
+                homeassistant_enabled: $('#cfg-ha-enabled').prop('checked'),
+                homeassistant_url:     $('#cfg-ha-url').val(),
+            }, '#ha-status');
+        });
+
+        $('#btn-save-email').on('click', function() {
+            postNotifierSettings({
+                email_enabled:    $('#cfg-email-enabled').prop('checked'),
+                email_hostname:   $('#cfg-email-host').val(),
+                email_port:       parseInt($('#cfg-email-port').val(), 10) || 587,
+                email_ssl:        $('#cfg-email-ssl').prop('checked'),
+                email_username:   $('#cfg-email-user').val(),
+                email_password:   $('#cfg-email-pass').val(),
+                email_sender:     $('#cfg-email-sender').val(),
+                email_recipients: $('#cfg-email-recipients').val(),
+            }, '#email-status');
+        });
+
+        $('#btn-save-kodi').on('click', function() {
+            postNotifierSettings({
+                kodi_enabled:    $('#cfg-kodi-enabled').prop('checked'),
+                kodi_hostname:   $('#cfg-kodi-host').val(),
+                kodi_http_port:  parseInt($('#cfg-kodi-http-port').val(), 10) || 8080,
+                kodi_tcp_port:   parseInt($('#cfg-kodi-tcp-port').val(), 10) || 9090,
+                kodi_notify:     $('#cfg-kodi-notify').prop('checked'),
+                kodi_individual: $('#cfg-kodi-individual').prop('checked'),
+                kodi_tvdir:      $('#cfg-kodi-tvdir').val(),
+            }, '#kodi-status');
+        });
+
         loadGeneralSettings();
+        loadNotifierSettings();
     })();
 
     // Check hours checkboxes
@@ -1662,10 +1843,10 @@ $(document).ready(function() {
                 var label = (h % 12 || 12) + (h < 12 ? 'am' : 'pm');
                 var $cb = $('<input>').attr({ type: 'checkbox', id: 'hcb' + h, value: h });
                 if (checked.indexOf(h) !== -1) $cb.prop('checked', true);
-                var $lbl = $('<label>').attr('for', 'hcb' + h).css({
+                var $lbl = $('<label>').addClass('text-soft').css({
                     display: 'flex', alignItems: 'center', gap: '4px',
-                    fontSize: '13px', cursor: 'pointer', color: '#ccc'
-                }).append($cb).append(document.createTextNode(label));
+                    fontSize: '13px', cursor: 'pointer'
+                }).attr('for', 'hcb' + h).append($cb).append(document.createTextNode(label));
                 $box.append($lbl);
             }
         }

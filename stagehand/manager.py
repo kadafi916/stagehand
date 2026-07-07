@@ -37,6 +37,8 @@ class Manager:
         # Maps Episode objects to InProgress objects for active downloads.
         self._retrieve_tasks = {}
         self._next_episode_check_timer  = None
+        # datetime of the next scheduled episode check (for status reporting).
+        self.next_episode_check = None
 
         # If the config schema changed (new version of Stagehand installed?)
         # then write out a new config file.
@@ -126,6 +128,7 @@ class Manager:
         handle = self.loop.call_at(self.loop.time() + delta,
                                     lambda: asyncio.ensure_future(self.check_new_episodes(reschedule=True)))
         self._next_episode_check_timer = handle
+        self.next_episode_check = next
 
 
     @property

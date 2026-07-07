@@ -18,6 +18,10 @@ __all__ = ['Searcher', 'modconfig']
 
 log = logging.getLogger('stagehand.searchers.easynews')
 
+# Result of the last authenticated request: True (ok), False (auth failed),
+# or None (no request made yet).  Exposed via /api/status for monitoring.
+last_auth_ok = None
+
 
 class Searcher(SearcherBase):
     NAME = 'easynews'
@@ -39,8 +43,10 @@ class Searcher(SearcherBase):
         url = modconfig.url or Searcher.DEFAULT_URL_GLOBAL5
         url = url.format(keywords=urllib.parse.quote_plus(title), subject=codes,
                          date=urllib.parse.quote_plus(date), size=size, res=res)
+        global last_auth_ok
         status, rss = await download(url, retry=modconfig.retries,
                                      auth=aiohttp.BasicAuth(modconfig.username, modconfig.password))
+        last_auth_ok = status not in (401, 403)
         if status in (401, 403):
             from .. import web
             web.notify('alert', title='Easynews Authentication Failed',
