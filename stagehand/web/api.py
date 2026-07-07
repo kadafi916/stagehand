@@ -319,7 +319,8 @@ def get_notifier_settings():
         'kodi_enabled':          'xbmc' in enabled,
         'kodi_hostname':         str(config.notifiers.xbmc.hostname),
         'kodi_http_port':        int(config.notifiers.xbmc.http_port),
-        'kodi_tcp_port':         int(config.notifiers.xbmc.tcp_port),
+        'kodi_username':         str(config.notifiers.xbmc.username),
+        'kodi_password':         str(config.notifiers.xbmc.password),
         'kodi_notify':           bool(config.notifiers.xbmc.notify),
         'kodi_individual':       bool(config.notifiers.xbmc.individual),
         'kodi_tvdir':            str(config.notifiers.xbmc.tvdir),
@@ -351,7 +352,8 @@ def set_notifier_settings():
     _set('notifiers.email.recipients',  d.get('email_recipients'))
     _set('notifiers.xbmc.hostname',     d.get('kodi_hostname'))
     _set('notifiers.xbmc.http_port',    d.get('kodi_http_port'), int)
-    _set('notifiers.xbmc.tcp_port',     d.get('kodi_tcp_port'), int)
+    _set('notifiers.xbmc.username',     d.get('kodi_username'))
+    _set('notifiers.xbmc.password',     d.get('kodi_password'))
     _set('notifiers.xbmc.notify',       d.get('kodi_notify'), _bool)
     _set('notifiers.xbmc.individual',   d.get('kodi_individual'), _bool)
     _set('notifiers.xbmc.tvdir',        d.get('kodi_tvdir'))

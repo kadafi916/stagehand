@@ -115,7 +115,7 @@ All common settings are available under **Configure → Settings**. Every sectio
 | Easynews | Username and password |
 | Home Assistant | Enable toggle + webhook URL (see Home Assistant integration below) |
 | Email Notifications | Enable toggle, SMTP host/port/SSL, optional auth, sender, recipients |
-| Kodi | Enable toggle, hostname, HTTP/TCP ports, on-screen notification, per-show library update, path remapping |
+| Kodi | Enable toggle, hostname, HTTP port, username/password, on-screen notification, per-show library update, path remapping. Requires "Allow remote control via HTTP" in Kodi (Settings → Services → Control). |
 | Episode Check Schedule | Checkboxes for each hour of the day; quick-select All / None / Every 2h / Every 4h |
 | System | Trigger an immediate episode check |
 

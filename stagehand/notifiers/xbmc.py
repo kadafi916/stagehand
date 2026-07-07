@@ -1,114 +1,103 @@
 import json
-import socket
-import urllib
 import logging
 import re
 import os
 import time
 import asyncio
+import aiohttp
 
 from ..config import config
-from ..toolbox import tobytes, tostr
-from ..toolbox.net import download
 from .base import NotifierBase, NotifierError
 from .xbmc_config import config as modconfig
 
 __all__ = ['Notifier']
 
-log = logging.getLogger('stagehand.notifiers.xbmc')
+log = logging.getLogger('stagehand.notifiers.kodi')
+
 
 class Notifier(NotifierBase):
-    def __init__(self, loop=None):
-        super().__init__(loop)
-        self._rpcver = 0
+    """
+    Kodi notifier using HTTP JSON-RPC (Settings -> Services -> Control ->
+    "Allow remote control via HTTP" must be enabled in Kodi).
+    """
 
-    async def _jsonrpc(self, method, params):
+    async def _jsonrpc(self, session, method, params=None):
         request = {
             'jsonrpc': '2.0',
             'method': method,
-            'params': params,
-            'id': 1
+            'params': params or {},
+            'id': 1,
         }
         log.debug2('issuing JSON-RPC method=%s params=%s', method, params)
-        buf = tobytes(json.dumps(request))
-        self._rpcwriter.write(buf)
-        data = await asyncio.wait_for(self._rpcreader.read(2048), timeout=5)
-        try:
-            response = json.loads(tostr(data))
-            return response['result']
-        except (ValueError, KeyError):
-            log.error('unexpected response from JSON-RPC: %s...', data[:1000])
+        url = 'http://%s:%d/jsonrpc' % (str(modconfig.hostname), int(modconfig.http_port))
+        async with session.post(url, json=request,
+                                timeout=aiohttp.ClientTimeout(total=10)) as resp:
+            if resp.status == 401:
+                raise NotifierError('Kodi rejected credentials: check username/password')
+            elif resp.status != 200:
+                raise NotifierError('Kodi JSON-RPC returned HTTP %d' % resp.status)
+            response = await resp.json()
+        if 'error' in response:
+            raise NotifierError('Kodi JSON-RPC error: %s' % response['error'])
+        return response.get('result')
 
 
-    async def _wait_for_idle(self, timeout=120):
+    async def _wait_for_idle(self, session, timeout=120):
         t0 = time.time()
         while time.time() - t0 < timeout:
-            result = await self._jsonrpc('XBMC.GetInfoBooleans', {'booleans': ['library.isscanning']})
-            if not result or result.get('library.isscanning') != True:
+            result = await self._jsonrpc(session, 'XBMC.GetInfoBooleans',
+                                         {'booleans': ['Library.IsScanningVideo']})
+            if not result or result.get('Library.IsScanningVideo') != True:
                 return True
-            log.debug2('XBMC busy scanning, waiting')
+            log.debug2('Kodi busy scanning, waiting')
             await asyncio.sleep(1)
         return False
 
 
-    async def _send_notification(self, title, msg):
-        result = await self._jsonrpc('GUI.ShowNotification', [title, msg])
-        return result
-
-
-    async def _update_library(self, path=""):
-        path = path + '/' if path and not path.endswith('/') else path
-        result = await self._jsonrpc('VideoLibrary.scan', [path])
-        return result
-
-
     async def _do_notify(self, episodes):
-        self._rpcreader, self._rpcwriter = await asyncio.open_connection(str(modconfig.hostname), int(modconfig.tcp_port))
-        result = await self._jsonrpc('JSONRPC.Version', [])
-        self._rpcver = result.get('version', {'major': 0})['major']
-        log.warning('rpc version %d', self._rpcver)
+        auth = None
+        if str(modconfig.username):
+            auth = aiohttp.BasicAuth(str(modconfig.username), str(modconfig.password))
 
-        notify_config = {
-            'Application': False,
-            'GUI': False,
-            'System': False,
-            'Player': False,
-            'AudioLibrary': False,
-            'VideoLibrary': False,
-            'Other': False
-        }
-        await self._jsonrpc('JSONRPC.SetConfiguration', {'notifications': notify_config})
+        async with aiohttp.ClientSession(auth=auth) as session:
+            result = await self._jsonrpc(session, 'JSONRPC.Version')
+            if result:
+                v = result.get('version', {})
+                log.debug('Kodi JSON-RPC version %s.%s', v.get('major', '?'), v.get('minor', '?'))
 
-        dirs = set(ep.series.path for ep in episodes)
+            dirs = set(ep.series.path for ep in episodes)
+            if modconfig.tvdir:
+                frm = os.path.normpath(str(config.misc.tvdir)) + '/'
+                to = os.path.normpath(str(modconfig.tvdir)) + '/'
+                dirs = set(re.sub(r'^' + re.escape(frm), to, d + '/').rstrip('/') for d in dirs)
 
-        if modconfig.tvdir:
-            frm = os.path.normpath(config.misc.tvdir) + '/'
-            to = os.path.normpath(modconfig.tvdir) + '/'
-            dirs = [re.sub(r'^' + frm, to, dir) for dir in dirs]
-
-        await self._wait_for_idle()
-        if modconfig.individual:
-            for dir in dirs:
-                await self._update_library(dir)
-                await self._wait_for_idle()
-        else:
-            await self._update_library()
-
-        if modconfig.notify:
-            if len(episodes) == 1:
-                msg = 'New episode for {} available.'.format(episodes[0].series.name)
+            await self._wait_for_idle(session)
+            if modconfig.individual:
+                for d in dirs:
+                    await self._jsonrpc(session, 'VideoLibrary.Scan',
+                                        {'directory': d + '/', 'showdialogs': False})
+                    await self._wait_for_idle(session)
             else:
-                msg = '{} new episodes added to library.'.format(len(episodes))
-            await self._send_notification('New TV Episodes', msg)
+                await self._jsonrpc(session, 'VideoLibrary.Scan', {'showdialogs': False})
 
-        self._rpcwriter.close()
-        log.debug('updated library with %d episodes', len(episodes))
+            if modconfig.notify:
+                if len(episodes) == 1:
+                    ep = episodes[0]
+                    msg = '%s %s available.' % (ep.series.name, ep.code)
+                else:
+                    msg = '%d new episodes added to library.' % len(episodes)
+                await self._jsonrpc(session, 'GUI.ShowNotification',
+                                    {'title': 'New TV Episodes', 'message': msg,
+                                     'displaytime': 8000})
+
+        log.info('updated Kodi library with %d episodes', len(episodes))
 
 
     async def _notify(self, episodes):
         try:
             await self._do_notify(episodes)
-        except asyncio.TimeoutError:
-            log.error('timed out waiting for XBMC server')
-        else:
-            log.info('send xbmc notification')
+        except (asyncio.TimeoutError, aiohttp.ClientError) as e:
+            log.error('could not reach Kodi at %s:%s: %s',
+                      modconfig.hostname, modconfig.http_port, e or 'timeout')
+        except NotifierError as e:
+            log.error('%s', e.args[0])

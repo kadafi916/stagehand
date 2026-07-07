@@ -1,9 +1,19 @@
 <?xml version="1.0"?>
 <config>
-    <desc lang="en">XBMC notifier</desc>
+    <desc lang="en">Kodi notifier</desc>
     <var name='hostname' type='str' default='localhost' />
-    <var name='http_port' type='int' default='8080' />
-    <var name='tcp_port' type='int' default='9090' />
+    <var name='http_port' type='int' default='8080'>
+        <desc>
+            Port of Kodi's web server (Settings -> Services -> Control ->
+            "Allow remote control via HTTP").
+        </desc>
+    </var>
+    <var name='username' type='str'>
+        <desc>Username for Kodi's web server, if required.</desc>
+    </var>
+    <var name='password' type='str' scramblekey='stagehand'>
+        <desc>Password for Kodi's web server, if required.</desc>
+    </var>
     <var name='notify' type='bool' default='True' />
     <var name='individual' type='bool' default='True'>
         <desc>
@@ -13,12 +23,12 @@
     </var>
     <var name='tvdir' type='str'>
         <desc>
-            The XBMC host's local path to the TV directory.  If defined,
+            The Kodi host's local path to the TV directory.  If defined,
             Stagehand will remap the path to the series directory when poking
-            XBMC to update.  If not defined, no translation is done.
+            Kodi to update.  If not defined, no translation is done.
 
             This is useful if Stagehand's view of the filesystem is different
-            than XBMC's.  Only relevant if individual is True.
+            than Kodi's.  Only relevant if individual is True.
         </desc>
     </var>
 </config>

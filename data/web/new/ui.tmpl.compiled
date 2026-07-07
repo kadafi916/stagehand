@@ -688,11 +688,20 @@
                     <label>HTTP Port</label>
                     <input type="number" id="cfg-kodi-http-port" min="1" max="65535">
                 </div>
-                <div class="settings-field" style="flex:1; min-width:100px">
-                    <label>TCP Port</label>
-                    <input type="number" id="cfg-kodi-tcp-port" min="1" max="65535">
+            </div>
+            <div style="display:flex; gap:1rem; flex-wrap:wrap">
+                <div class="settings-field" style="flex:1; min-width:160px">
+                    <label>Username</label>
+                    <input type="text" id="cfg-kodi-user" autocomplete="off">
+                </div>
+                <div class="settings-field" style="flex:1; min-width:160px">
+                    <label>Password</label>
+                    <input type="password" id="cfg-kodi-pass" autocomplete="new-password">
                 </div>
             </div>
+            <p class="text-dim" style="font-size:12px; margin-top:0">
+                Requires "Allow remote control via HTTP" in Kodi under Settings &rarr; Services &rarr; Control.
+            </p>
             <div style="display:flex; gap:1.5rem; flex-wrap:wrap; margin-bottom:0.5rem">
                 <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:13px">
                     <input type="checkbox" id="cfg-kodi-notify" style="width:auto"> On-screen notification
@@ -1782,7 +1791,8 @@ $(document).ready(function() {
                 $('#cfg-kodi-enabled').prop('checked', !!d.kodi_enabled);
                 $('#cfg-kodi-host').val(d.kodi_hostname || '');
                 $('#cfg-kodi-http-port').val(d.kodi_http_port || 8080);
-                $('#cfg-kodi-tcp-port').val(d.kodi_tcp_port || 9090);
+                $('#cfg-kodi-user').val(d.kodi_username || '');
+                $('#cfg-kodi-pass').val(d.kodi_password || '');
                 $('#cfg-kodi-notify').prop('checked', !!d.kodi_notify);
                 $('#cfg-kodi-individual').prop('checked', !!d.kodi_individual);
                 $('#cfg-kodi-tvdir').val(d.kodi_tvdir || '');
@@ -1821,7 +1831,8 @@ $(document).ready(function() {
                 kodi_enabled:    $('#cfg-kodi-enabled').prop('checked'),
                 kodi_hostname:   $('#cfg-kodi-host').val(),
                 kodi_http_port:  parseInt($('#cfg-kodi-http-port').val(), 10) || 8080,
-                kodi_tcp_port:   parseInt($('#cfg-kodi-tcp-port').val(), 10) || 9090,
+                kodi_username:   $('#cfg-kodi-user').val(),
+                kodi_password:   $('#cfg-kodi-pass').val(),
                 kodi_notify:     $('#cfg-kodi-notify').prop('checked'),
                 kodi_individual: $('#cfg-kodi-individual').prop('checked'),
                 kodi_tvdir:      $('#cfg-kodi-tvdir').val(),
