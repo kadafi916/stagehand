@@ -166,8 +166,11 @@ class SearcherBase:
         parts = []
         for ep in episodes or ():
             if codes:
-                parts.append(ep.code)
-                parts.append('{0}x{1:02}'.format(ep.season.number, ep.number))
+                # season_offset compensates for releases posted with a
+                # different season number than the metadata provider uses.
+                season = ep.season.number + int(ep.series.cfg.season_offset or 0)
+                parts.append('s%02de%02d' % (season, ep.number))
+                parts.append('{0}x{1:02}'.format(season, ep.number))
             if dates:
                 dt = ep.airdatetime
                 if dt:

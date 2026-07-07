@@ -171,6 +171,15 @@ config = Config(schema=[
 
     Var(name='language', desc='Preferred audio language for this series (overrides global default).', default=''),
 
+    Var(name='season_offset', desc='''
+    Offset applied to the metadata provider\'s season number when
+    searching for episodes.
+
+    Useful when releases are posted with a different season number
+    than the provider uses.  For example, if the provider calls it
+    season 2 but releases are posted as s03, set this to 1.
+    ''', default=0),
+
     ]
   ),
 

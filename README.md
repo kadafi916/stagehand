@@ -85,6 +85,10 @@ Pausing a show cancels any of its queued or in-progress downloads (with a notifi
 
 Click the **⋯** button on any season header to apply an action to the entire season at once.
 
+### Season offset
+
+Sometimes releases are posted with a different season number than TheTVDB/TVmaze use (e.g. the provider says season 2 but files are posted as `S03E06`). Set **Season Offset** in the show's Advanced Settings to the difference (in that example, `1`). The offset applies to searching and result matching only — the library, episode list, and file naming keep the provider's numbering.
+
 ### Per-show folder options
 
 Each show's detail page has two folder controls:

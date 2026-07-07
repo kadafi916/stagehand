@@ -194,6 +194,16 @@
                 Preferred audio language for this series (overrides global default).
             </desc>
         </var>
+        <var name='season_offset' type='int' default='0'>
+            <desc>
+                Offset applied to the metadata provider's season number when
+                searching for episodes.
+
+                Useful when releases are posted with a different season number
+                than the provider uses.  For example, if the provider calls it
+                season 2 but releases are posted as s03, set this to 1.
+            </desc>
+        </var>
     </list>
 
     <group name="searchers">

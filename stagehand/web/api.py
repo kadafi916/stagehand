@@ -96,6 +96,10 @@ def show_settings(id):
     series.cfg.quality = settings.quality
     series.cfg.search_string = settings.search_string
     series.cfg.language = settings.language
+    try:
+        series.cfg.season_offset = int(settings.season_offset or 0)
+    except ValueError:
+        pass
     series.cfg.paused = True if settings['paused'] == 'true' else False
     series.cfg.flat = True if settings['flat'] == 'true' else False
     series.cfg.identifier = settings.identifier
@@ -584,6 +588,7 @@ def show_detail(id):
         'path': series.cfg.path or '' if str(series.cfg.path) != '.' else '',
         'search_string': series.cfg.search_string or '',
         'language': series.cfg.language or '',
+        'season_offset': int(series.cfg.season_offset),
         'provider': series.cfg.provider or '',
         'providers': providers,
         'quality_options': list(get_type(series.cfg.quality)),
