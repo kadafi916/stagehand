@@ -7,7 +7,8 @@ __all__ = ['Notifier']
 
 class Notifier(NotifierBase):
     async def _notify(self, episodes):
-        # TODO: don't spam individual notifications if # of episodes is more
-        # than say 5.
-        for ep in episodes:
-            web.notify('alert', title='Episode retrieved', text='Downloaded %s %s' % (ep.series.name, ep.code))
+        # Per-episode completion toasts are issued by the manager as each
+        # download finishes; this batch notifier just summarizes.
+        if len(episodes) > 1:
+            web.notify('alert', title='Downloads Complete',
+                       text='Downloaded %d episodes.' % len(episodes))

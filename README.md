@@ -74,7 +74,9 @@ Actions: **Mark as Needed**, **Mark as Ignored**, **Delete File + Ignore**
 
 **Mark as Needed** triggers an immediate search regardless of airtime. This is useful for episodes that aired before you added the show (which are auto-ignored on add), episodes you previously ignored and want back, or to force a search now rather than waiting for the next scheduled check. Future episodes are downloaded automatically on schedule without needing to be marked.
 
-A notification is shown after every status change — single episode or full season.
+A notification is shown after every status change — single episode or full season. Each download also produces a notification when it completes, and clear error notifications are shown for permission problems on the TV directory or bad Easynews credentials.
+
+Pausing a show cancels any of its queued or in-progress downloads (with a notification).
 
 ### Season actions
 
@@ -130,4 +132,5 @@ The quality setting controls both the minimum acceptable file size and which res
 - NZB / generic NNTP support (non-Easynews Usenet)
 - BitTorrent
 - Import of an existing TV library
-- Various FIXMEs and TODOs in the source
+- Timezone-aware airdate handling (airtimes are compared against server local time)
+- Various minor FIXMEs and TODOs in the source

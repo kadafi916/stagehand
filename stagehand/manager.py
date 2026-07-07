@@ -521,8 +521,15 @@ class Manager:
                  of the retrievers.
         """
         if not os.path.isdir(ep.season.path):
-            # TODO: handle failure
-            os.makedirs(ep.season.path)
+            try:
+                os.makedirs(ep.season.path)
+            except OSError as e:
+                log.error('could not create directory %s: %s', ep.season.path, e.strerror)
+                web.notify('alert', title='Download Failed',
+                           text='Could not create directory %s: %s.  Check permissions '
+                                'on the TV directory.' % (ep.season.path, e.strerror),
+                           type='error')
+                return False
 
         msg = 'starting retrieval of %s %s' % (ep.series.name, ep.code)
         log.info(msg)
@@ -558,19 +565,25 @@ class Manager:
                 except RetrieverError as e:
                     ep.filename = ep.search_result = None
                     if os.path.exists(target):
-                        # TODO: handle permission problem
                         log.debug('deleting failed/aborted attempt %s', target)
-                        os.unlink(target)
+                        try:
+                            os.unlink(target)
+                        except OSError as unlink_exc:
+                            log.error('could not delete partial file %s: %s', target, unlink_exc.strerror)
+                            web.notify('alert', title='Cleanup Failed',
+                                       text='Could not delete partial file %s: %s.  Check permissions '
+                                            'on the TV directory.' % (target, unlink_exc.strerror),
+                                       type='error')
                     # Reraise for outer try block
                     raise
             except RetrieverSoftError:
                 # Soft error (including soft abort): try another result.
                 continue
             else:
-                # TODO: notify per episode (as well as batches)
                 log.info('successfully retrieved %s %s', ep.series.name, ep.code)
-                #log.debug('not really')
                 ep.status = ep.STATUS_HAVE
+                web.notify('alert', title='Download Complete',
+                           text='%s %s downloaded successfully.' % (ep.series.name, ep.code))
                 return True
             finally:
                 # ep may not be in _retrieve_tasks if e.g. retrieve() raises

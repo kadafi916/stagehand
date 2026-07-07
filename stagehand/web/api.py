@@ -92,6 +92,7 @@ async def show_refresh(job, id):
 def show_settings(id):
     series = get_series_from_request(id)
     settings = web.request.forms
+    was_paused = bool(series.cfg.paused)
     series.cfg.quality = settings.quality
     series.cfg.search_string = settings.search_string
     series.cfg.language = settings.language
@@ -107,8 +108,15 @@ def show_settings(id):
     manager = web.request['stagehand.manager']
     config.save(manager.paths.config)
 
-    # TODO: if pausing a series that has queued episodes, remove them and
-    # notify user.
+    # If the series was just paused, cancel any queued or active downloads.
+    if series.cfg.paused and not was_paused:
+        cancelled = [ep for ep, results in manager.retrieve_queue if ep.series == series]
+        for ep in cancelled:
+            manager.cancel_episode_retrieval(ep)
+        if cancelled:
+            asyncweb.notify('alert', title='Downloads Cancelled',
+                            text='%d queued download%s for %s cancelled due to pause.' %
+                                 (len(cancelled), '' if len(cancelled) == 1 else 's', series.name))
     return {}
 
 

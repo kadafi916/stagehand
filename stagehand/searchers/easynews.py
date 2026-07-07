@@ -41,8 +41,14 @@ class Searcher(SearcherBase):
                          date=urllib.parse.quote_plus(date), size=size, res=res)
         status, rss = await download(url, retry=modconfig.retries,
                                      auth=aiohttp.BasicAuth(modconfig.username, modconfig.password))
-        if status != 200:
-            # TODO: handle status codes like 401 (unauth)
+        if status in (401, 403):
+            from .. import web
+            web.notify('alert', title='Easynews Authentication Failed',
+                       text='Easynews rejected your credentials.  Check the username and '
+                            'password under Configure &rarr; Settings &rarr; Easynews.',
+                       type='error')
+            raise SearcherError('Easynews authentication failed (HTTP %d): check username/password' % status)
+        elif status != 200:
             raise SearcherError('HTTP status not ok (%d)' % status)
         #file('result.rss', 'w').write(rss)
         return rss
