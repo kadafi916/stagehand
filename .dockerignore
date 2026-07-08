@@ -1,0 +1,5 @@
+.git
+**/__pycache__
+# Removed bundled module; root-owned pycache remnants may linger on the host.
+# Keep any trace of it out of the image so it can't shadow pip's beautifulsoup4.
+external/bs4

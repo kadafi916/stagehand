@@ -1,6 +1,11 @@
-Stagehand bundles these third party modules for ease of installation:
+Stagehand bundles this third party module for ease of installation:
 
-* [asyncio](https://code.google.com/p/tulip/) (aka Tulip), released under the Apache License 2.0
-* [aiohttp](https://github.com/KeepSafe/aiohttp), released under the BSD license
-* [BeautifulSoup](http://www.crummy.com/software/BeautifulSoup/), released under the MIT license
-* [kaa.metadata](https://github.com/freevo/kaa-metadata), released under the GPL, and *partially* ported to Python 3 by me
+* [kaa.metadata](https://github.com/freevo/kaa-metadata), released under the GPL,
+  *partially* ported to Python 3.  Used for optional verification of downloaded
+  video files (resolution, codecs, audio language).  There is no pip-installable
+  Python 3 release, hence the bundled copy.
+
+Historical note: asyncio (Tulip), aiohttp, and BeautifulSoup were once bundled
+here as well.  asyncio has been part of the Python standard library since 3.4,
+and aiohttp and beautifulsoup4 are now regular pip dependencies (see
+install_requires in setup.py and the Dockerfile).
