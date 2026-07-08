@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 NAME = 'stagehand'
-VERSION = '0.4.22'
+VERSION = '0.4.23'
 
 import sys
 import os

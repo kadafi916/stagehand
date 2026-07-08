@@ -195,14 +195,21 @@ class SearcherBase:
 
     def _is_name_for_episode(self, name, ep):
         recode = re.compile(r'(\b|_){0}(\b|_)'.format(self._get_episode_codes_regexp([ep])), re.I)
-        if recode.search(name):
-            # Epcode matches, check for title.
+        m = recode.search(name)
+        if m:
+            # Epcode matches, check for title.  Release names put the show
+            # title before the episode code and the episode title after it,
+            # so only search the portion before the code.  Otherwise a show
+            # with a generic one-word title matches unrelated releases whose
+            # episode title happens to contain that word (e.g. the show
+            # "From" matching "High.Castle.S04E10.Fire.from.the.Gods").
+            prefix = name[:m.start()]
             title = ep.series.cfg.search_string or ep.series.name
             title = self.clean_title(title, apostrophe=self.CLEAN_APOSTROPHE_REGEXP)
             # Ensure each word in the title matches, but don't require them to be in
             # the right order.
             for word in title.split():
-                if not re.search(r'(\b|_)%s(\b|_)' % word, name, re.I):
+                if not re.search(r'(\b|_)%s(\b|_)' % word, prefix, re.I):
                     break
             else:
                 return True
