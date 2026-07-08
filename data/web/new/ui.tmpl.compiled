@@ -253,6 +253,14 @@
         .upcoming-table td:nth-child(2) { width: 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .upcoming-table td:nth-child(3) { width: 6em; }
         .upcoming-table td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        /* Downloads — queue table + one table per week; same fixed layout treatment */
+        .dl-table { width: 100%; table-layout: fixed; }
+        .dl-table th:nth-child(1) { width: 28%; }
+        .dl-table th:nth-child(2) { width: 4.5em; }
+        .dl-table th:nth-child(4) { width: 8em; }
+        .dl-table th:nth-child(5) { width: 14em; }
+        .dl-table td:nth-child(1), .dl-table td:nth-child(3) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         @media (max-width: 450px) {
             #menu-search { display: none; }
         }
@@ -1743,14 +1751,14 @@ function renderDownloads(data) {
 
     if (queue.length) {
         $c.append($('<div>').addClass('week-header').text('Queued Downloads'));
-        var $qt = $('<table>').addClass('ui table');
+        var $qt = $('<table>').addClass('ui table dl-table');
         $qt.append('<thead><tr><th>Series</th><th>#</th><th>Episode</th><th>Date</th><th>Progress</th></tr></thead>');
         var $qb = $('<tbody>');
         queue.forEach(function(q) {
             var $tr = $('<tr>');
-            $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + q.show_id).css('color','#2185d0').text(q.show_name)));
+            $tr.append($('<td>').attr('title', q.show_name).append($('<a>').attr('href', '#/tv/' + q.show_id).css('color','#2185d0').text(q.show_name)));
             $tr.append($('<td>').text(q.season + 'x' + q.number));
-            $tr.append($('<td>').text(q.name));
+            $tr.append($('<td>').attr('title', q.name).text(q.name));
             $tr.append($('<td>').css('white-space','nowrap').text(q.airdate || 'TBA'));
             var $prog;
             if (q.progress) {
@@ -1776,15 +1784,15 @@ function renderDownloads(data) {
             if (ep.week !== lastWeek) {
                 lastWeek = ep.week;
                 $c.append($('<div>').addClass('week-header').text(weekLabel(ep.week)));
-                $et = $('<table>').addClass('ui table').css('margin-bottom','1rem');
+                $et = $('<table>').addClass('ui table dl-table').css('margin-bottom','1rem');
                 $et.append('<thead><tr><th>Series</th><th>#</th><th>Episode</th><th>Date</th><th>Status</th></tr></thead>');
                 $et.append('<tbody>');
                 $c.append($et);
             }
             var $tr = $('<tr>');
-            $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + ep.show_id).css('color','#2185d0').text(ep.show_name)));
+            $tr.append($('<td>').attr('title', ep.show_name).append($('<a>').attr('href', '#/tv/' + ep.show_id).css('color','#2185d0').text(ep.show_name)));
             $tr.append($('<td>').text(ep.season + 'x' + ep.number));
-            $tr.append($('<td>').text(ep.name));
+            $tr.append($('<td>').attr('title', ep.name).text(ep.name));
             $tr.append($('<td>').css('white-space','nowrap').text(ep.airdate || 'TBA'));
             $tr.append($('<td>').append($('<span>').addClass('status-' + ep.status).attr('title', ep.status_title).html('&#9679; ' + ep.status_title)));
             $et.find('tbody').append($tr);
