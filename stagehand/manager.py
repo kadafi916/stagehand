@@ -519,7 +519,7 @@ class Manager:
         return os.path.join(os.path.dirname(self.paths.db), 'history.jsonl')
 
 
-    def _record_history(self, ep, search_result):
+    def _record_history(self, ep, search_result, candidates=None):
         """
         Append a completed download to the history file (one JSON object per line).
         """
@@ -533,9 +533,12 @@ class Manager:
             'episode': ep.number,
             'title': ep.name or '',
             'filename': ep.filename or '',
+            'original_filename': search_result.filename or '',
             'size': search_result.size or 0,
             'quality': search_result.quality or '',
             'searcher': search_result.searcher or '',
+            'reason': getattr(search_result, 'rank_info', None) or '',
+            'candidates': candidates,
         }
         try:
             with open(self.history_file, 'a') as f:
@@ -615,7 +618,7 @@ class Manager:
             else:
                 log.info('successfully retrieved %s %s', ep.series.name, ep.code)
                 ep.status = ep.STATUS_HAVE
-                self._record_history(ep, search_result)
+                self._record_history(ep, search_result, candidates=len(ep_results))
                 web.notify('alert', title='Download Complete',
                            text='%s %s downloaded successfully.' % (ep.series.name, ep.code))
                 return True

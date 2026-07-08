@@ -1,7 +1,6 @@
 import os
 import re
 import asyncio
-import functools
 import logging
 import unicodedata
 
@@ -59,107 +58,111 @@ class SearcherBase:
         return int(sz)
 
 
-    def _cmp_result(self, ep, ideal_size, a, b):
-        # Hideous and improperly hardcoded logic follows.
-        inf = float('inf')
-        exts = {
-            # Want.
-            'mkv': 3, 'mp4': 2, 'avi': 1,
-            # Don't want.
-            'wmv': -inf, 'mpg': -inf, 'ts': -inf, 'rar': -inf, r'r\d\d': -inf,
-        }
-        res = {'2160p': 3, '1080p': 2, '720p': 1}
-        mods = {r'blu-?ray': 10, 'proper': 9, r're-?pack': 7, 'immerse': 6,
-                'dimension': 5, 'nlsubs': 4, 'web-?dl': 3}
+    # Result ranking tables.  Results are sorted by comparing score vectors
+    # built in this priority order (see _score_result):
+    #   1. filename match (vs. subject-only match)
+    #   2. container extension
+    #   3. resolution
+    #   4. A/V format (codec preference is resolution-aware)
+    #   5. size relative to the quality tier's ideal
+    #   6. release modifiers (proper, repack, source group...)
+    #   7. post date
+    RESULT_EXTS = {'mkv': 3, 'mp4': 2, 'avi': 1}
+    RESULT_BAD_EXTS = ('wmv', 'mpg', 'ts', 'rar', r'r\d\d')
+    RESULT_RES = {'2160p': 3, '1080p': 2, '720p': 1}
+    RESULT_MODS = {r'blu-?ray': 10, 'proper': 9, r're-?pack': 7, 'immerse': 6,
+                   'dimension': 5, 'nlsubs': 4, 'web-?dl': 3}
+    GOOD_AUDIO = r'(ac-?3|e-?ac-?3|ddp[\d.]*|truehd|dts|dd5\.?1)'
 
-        aname = a.filename.lower()
-        bname = b.filename.lower()
-        aext = os.path.splitext(aname)[-1].lstrip('.')
-        bext = os.path.splitext(bname)[-1].lstrip('.')
+    def _score_result(self, ep, ideal_size, result):
+        """
+        Score a single search result.
 
-        # Prefer results that match filename over subject.
-        ascore = self._is_name_for_episode(a.filename, ep)
-        bscore = self._is_name_for_episode(b.filename, ep)
-        if ascore != bscore:
-            return 1 if bscore else -1
+        :returns: (key, labels) where key is a tuple that sorts higher for
+                  better results, and labels is a list of human-readable
+                  strings explaining the score.
 
-        # Sort by extension
-        ascore = bscore = 0
-        for ext, score in exts.items():
-            if re.match(ext, aext):
-               ascore = score
-            if re.match(ext, bext):
-               bscore = score
-        if ascore == -inf:
-            a.disqualified = True
-        if bscore == -inf:
-            b.disqualified = True
-        if ascore != bscore:
-            return 1 if bscore > ascore else -1
+        Sets result.disqualified/disqualify_reason for results that must not
+        be used regardless of rank.
+        """
+        name = result.filename.lower()
+        ext = os.path.splitext(name)[-1].lstrip('.')
+        labels = []
 
-        def score_by_search(items):
-            ascore = bscore = 0
-            for substr, score in items:
-                restr = re.compile(r'[-. ]%s[-. $]' % substr)
-                if restr.search(aname):
-                    ascore = score
-                if restr.search(bname):
-                    bscore = score
-            return ascore, bscore
+        def find(pattern):
+            return re.search(r'[-. ]%s[-. $]' % pattern, name)
 
-        # Sort by resolution — checked before codec/size so 1080p always beats 720p
-        ascore, bscore = score_by_search(res.items())
-        if ascore != bscore:
-            return 1 if bscore > ascore else -1
+        # 1. Filename match beats subject-only match.
+        match = 1 if self._is_name_for_episode(result.filename, ep) else 0
+        if not match:
+            labels.append('subject match only')
 
-        # Sort by A/V format. Codec preference is resolution-aware:
-        # UHD (2160p): x265 > x264 — HEVC is the standard for 4K.
-        # HD/unknown: x264 > x265 — better device compatibility.
-        def av_score(name):
-            good_audio = r'(ac-?3|e-?ac-?3|ddp[\d.]*|truehd|dts|dd5\.?1)'
-            is_uhd = bool(re.search(r'[-. ]2160p[-. $]', name, re.I))
-            hi, lo = (r'[xh]\.?265', r'[xh]\.?264') if is_uhd else (r'[xh]\.?264', r'[xh]\.?265')
-            pairs = [
-                ((hi, good_audio), 12), ((hi, None), 11),
-                ((lo, good_audio), 10), ((lo, None), 9),
-                ((None, r'(ac-?3|e-?ac-?3|ddp[\d.]*|dts)'), 8),
-                ((None, r'aac\.?2?'), -1),
-            ]
-            score = 0
-            for (vfmt, afmt), s in pairs:
-                vs = re.compile(r'[-. ]%s[-. $]' % vfmt).search if vfmt else bool
-                af = re.compile(r'[-. ]%s[-. $]' % afmt).search if afmt else bool
-                if score >= 0 and vs(name) and af(name):
-                    score = s if s > score or s < 0 else score
-            return score
-        ascore, bscore = av_score(aname), av_score(bname)
-        if ascore != bscore:
-            return 1 if bscore > ascore else -1
+        # 2. Container extension.
+        ext_score = 0
+        for pattern in self.RESULT_BAD_EXTS:
+            if re.match(pattern + '$', ext):
+                result.disqualified = True
+                result.disqualify_reason = 'unwanted extension .%s' % ext
+        for e, score in self.RESULT_EXTS.items():
+            if re.match(e + '$', ext):
+                ext_score = score
+                labels.append(e)
 
-        # Sort by ideal size (if specified).
-        if ideal_size:
-            aratio = a.size / float(ideal_size)
-            bratio = b.size / float(ideal_size)
-            # If both sizes are within 20% of each other, treat them the same.
-            if 0.8 < (a.size / float(b.size)) < 1.2:
-                pass
-            # If both sizes are no worse than 60% of ideal size, or up to 4x ideal size,
-            # prefer the larger one
-            elif 0.6 < aratio < 4 and 0.6 < bratio < 4:
-                return 1 if b.size > a.size else -1
-            # Otherwise prefer the one closest to ideal.
+        # 3. Resolution.
+        res_score = 0
+        res_label = None
+        for r, score in self.RESULT_RES.items():
+            if find(r):
+                res_score, res_label = score, r
+        labels.append(res_label or 'unknown resolution')
+
+        # 4. A/V format.  Codec preference is resolution-aware: x265 preferred
+        # for 2160p (HEVC is the 4K standard), x264 preferred otherwise
+        # (better device compatibility).
+        v265 = bool(find(r'[xh]\.?265'))
+        v264 = bool(find(r'[xh]\.?264'))
+        good_audio = bool(find(self.GOOD_AUDIO))
+        aac = bool(find(r'aac\.?2?'))
+        av_score = 0
+        if aac:
+            av_score = -1
+            labels.append('AAC audio')
+        elif v264 or v265:
+            prefer265 = res_label == '2160p'
+            preferred = v265 if prefer265 else v264
+            av_score = (11 if preferred else 9) + (1 if good_audio else 0)
+            labels.append(('x265' if v265 else 'x264') +
+                          ('+surround audio' if good_audio else ''))
+        elif good_audio:
+            av_score = 8
+            labels.append('surround audio')
+
+        # 5. Size relative to ideal for the quality tier.  Results within
+        # 0.6x-4x of ideal are acceptable and bigger is better; outside that
+        # band, closer to ideal is better (and always ranks below in-band).
+        if ideal_size and result.size:
+            ratio = result.size / float(ideal_size)
+            if 0.6 < ratio < 4:
+                size_key = (1, result.size)
+                labels.append('%.1fx ideal size' % ratio)
             else:
-                return 1 if abs(1-aratio) > abs(1-bratio) else -1
+                size_key = (0, -abs(1 - ratio))
+                labels.append('%.1fx ideal size (out of range)' % ratio)
+        else:
+            size_key = (0, 0)
 
-        # Sort by other modifiers
-        ascore, bscore = score_by_search(mods.items())
-        if ascore != bscore:
-            return 1 if bscore > ascore else -1
+        # 6. Release modifiers.
+        mod_score = 0
+        for pattern, score in self.RESULT_MODS.items():
+            if find(pattern):
+                mod_score = score
+                labels.append(pattern.replace('-?', '-').replace('?', ''))
 
-        # Sort by date, preferring the newest (or the one which actually has a date)
-        if a.date != b.date:
-            return 1 if b.date and not a.date or (b.date and a.date and b.date > a.date) else -1
-        return 0
+        # 7. Post date (newer preferred).
+        ts = result.date.timestamp() if result.date else 0
+
+        key = (match, ext_score, res_score, av_score, size_key, mod_score, ts)
+        return key, labels
 
 
     def _get_episode_codes_regexp_list(self, episodes, codes=True, dates=True):
@@ -282,28 +285,34 @@ class SearcherBase:
         quality_str = str(quality).upper()
         if quality_str == 'HD':
             over_res = re.compile(r'[-. ]2160p[-. $]', re.I)
-            for l in results.values():
-                for result in l:
-                    if over_res.search(result.filename):
-                        log.info('disqualifying result %s: 2160p exceeds HD quality setting', result)
-                        result.disqualified = True
+            over_reason = '2160p exceeds HD quality setting'
         elif quality_str == 'SD':
             over_res = re.compile(r'[-. ](2160p|1080p|720p)[-. $]', re.I)
+            over_reason = 'resolution exceeds SD quality setting'
+        else:
+            over_res = None
+        if over_res:
             for l in results.values():
                 for result in l:
                     if over_res.search(result.filename):
-                        log.info('disqualifying result %s: resolution exceeds SD quality setting', result)
                         result.disqualified = True
+                        result.disqualify_reason = over_reason
 
-        # Sort, remove disqualified results, and set common result attributes.
+        # Score, sort, remove disqualified results, and set common result
+        # attributes.
         for ep, l in list(results.items()):
-            # Sorting also sets the disqualified attribute on the bad
-            # results.
-            cmpfunc = functools.partial(self._cmp_result, ep, ideal_size)
-            l.sort(key=functools.cmp_to_key(cmpfunc))
+            scored = []
+            for result in l:
+                key, labels = self._score_result(ep, ideal_size, result)
+                result.rank_info = ', '.join(labels)
+                scored.append((key, result))
+            scored.sort(key=lambda kr: kr[0], reverse=True)
+            l[:] = [result for key, result in scored]
             for result in l[:]:
                 if result.disqualified or result.size < min_size:
-                    log.info('disqualifying result %s, size=%d min_size=%d', result, result.size, min_size)
+                    reason = result.disqualify_reason or \
+                             'size %dMB below tier minimum %dMB' % (result.size / 1048576, min_size / 1048576)
+                    log.info('disqualifying result %s: %s', result, reason)
                     l.remove(result)
                 else:
                     result.searcher = self.NAME
@@ -316,7 +325,7 @@ class SearcherBase:
                 del results[ep]
             else:
                 for n, result in enumerate(l, 1):
-                    log.info('result: %s. %s', n, result)
+                    log.info('result: %s. %s [%s]', n, result, result.rank_info)
 
 
         return results
@@ -350,6 +359,10 @@ class SearchResult:
     # The quality level expected for this result (retrievers may verify).
     quality = None
     disqualified = False
+    # Why this result was disqualified (if it was).
+    disqualify_reason = None
+    # Human-readable summary of the ranking score (set during search()).
+    rank_info = None
 
     def __init__(self, searcher, **kwargs):
         self.type = searcher.TYPE

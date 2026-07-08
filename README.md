@@ -234,17 +234,38 @@ automation:
           message: "{{ trigger.json.show }} {{ trigger.json.code }} — {{ trigger.json.title }}"
 ```
 
-### Quality preference
+### Quality preference and result ranking
 
-The quality setting controls both the minimum acceptable file size and which resolutions are allowed:
+Each show's quality setting (UHD / HD / SD / Any) controls three things — which resolutions are allowed, the minimum acceptable file size, and the "ideal" size used for ranking. Sizes scale with the show's runtime; the show's Advanced Settings display the computed numbers for the selected tier.
 
-| Setting | Accepted resolutions | Preferred |
-|---------|----------------------|-----------|
-| UHD | 2160p, 1080p, 720p | 2160p |
-| HD | 1080p, 720p | 1080p |
-| SD | below 720p | highest available |
+| Setting | Resolutions | Min size | Ideal size |
+|---------|-------------|----------|------------|
+| UHD | up to 2160p (prefers 2160p) | 30 MB/min | 120 MB/min |
+| HD | 1080p/720p — 2160p rejected | 10 MB/min | 25 MB/min |
+| SD | below 720p only | 2 MB/min | 8 MB/min |
+| Any | anything (prefers highest) | 2 MB/min | 20 MB/min |
 
-2160p results are automatically disqualified when HD is selected, so a 4K result will never be downloaded when you want HD. Resolution is evaluated before codec and file size, so a 1080p file always beats a 720p file. Within the same resolution, codec preference is resolution-aware: x264 is preferred for HD (wider device compatibility), x265/HEVC is preferred for UHD (standard for 4K). Surround/lossless audio (DDP, TrueHD, DTS, AC3) is preferred over AAC.
+For a typical 42-minute HD show that means: files under ~420 MB are rejected, and ~1 GB is considered ideal.
+
+Candidate results are then ranked by comparing these criteria **in order** — a result that wins on an earlier criterion wins outright, and later criteria only break ties:
+
+1. **Filename match** — the episode code + show title found in the actual filename beats a match only in the post subject
+2. **Container** — mkv > mp4 > avi; wmv/mpg/ts/rar are disqualified
+3. **Resolution** — 2160p > 1080p > 720p (within what the tier allows)
+4. **Codec/audio** — resolution-aware: x264 preferred for HD (device compatibility), x265 preferred for 2160p (the 4K standard); surround audio (DDP/EAC-3/AC3/TrueHD/DTS) is a bonus; AAC is penalized
+5. **Size** — results between 0.6× and 4× of ideal are "in range" and bigger wins; out-of-range results rank below in-range ones, closest to ideal first
+6. **Release modifiers** — blu-ray > proper > repack > web-dl, etc.
+7. **Post date** — newer wins
+
+Every search logs its ranked results with the reasons, e.g.:
+
+```
+result: 1. <SearchResult Some.Show.S01E04.1080p.WEB-DL.DDP5.1.H.264-GRP.mkv> [mkv, 1080p, x264+surround audio, 1.4x ideal size, web-dl]
+disqualifying result <...2160p...>: 2160p exceeds HD quality setting
+disqualifying result <...>: size 210MB below tier minimum 420MB
+```
+
+The winning result's ranking summary is also recorded in the download history — click any row on the History page to see the original release name, what it was renamed to, and why that file was picked.
 
 ---
 

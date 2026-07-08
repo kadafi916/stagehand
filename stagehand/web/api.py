@@ -687,6 +687,24 @@ def stats():
     }
 
 
+def _quality_info(series):
+    """
+    Per-tier explanation of what the quality setting means for this series,
+    with sizes computed from its runtime.
+    """
+    from ..searchers import QUALITY_SIZES, QUALITY_RESOLUTIONS
+    runtime = series.runtime or 30
+    info = {}
+    for tier, (min_mb, ideal_mb) in QUALITY_SIZES.items():
+        info[tier] = {
+            'resolutions': QUALITY_RESOLUTIONS.get(tier, ''),
+            'min_mb': runtime * min_mb,
+            'ideal_mb': runtime * ideal_mb,
+            'runtime': runtime,
+        }
+    return info
+
+
 @web.get('/api/shows/<id>/detail')
 def show_detail(id):
     manager = web.request['stagehand.manager']
@@ -738,6 +756,7 @@ def show_detail(id):
         'provider': series.cfg.provider or '',
         'providers': providers,
         'quality_options': list(get_type(series.cfg.quality)),
+        'quality_info': _quality_info(series),
         'identifier_options': list(get_type(series.cfg.identifier)),
         'seasons': seasons,
     }

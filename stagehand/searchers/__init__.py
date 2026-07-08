@@ -11,6 +11,24 @@ log = logging.getLogger('stagehand.searchers')
 
 plugins, broken_plugins = load_plugins('searchers', ['easynews'])
 
+# For each quality tier: (minimum MB per minute, ideal MB per minute).
+# A result smaller than runtime * min is disqualified; ideal drives the
+# size portion of result ranking.
+QUALITY_SIZES = {
+    'UHD': (30, 120),
+    'HD': (10, 25),
+    'SD': (2, 8),
+    'Any': (2, 20),
+}
+
+# Which resolutions each tier accepts (2160p is disqualified for HD, etc).
+QUALITY_RESOLUTIONS = {
+    'UHD': '2160p, 1080p or 720p (prefers 2160p)',
+    'HD': '1080p or 720p (prefers 1080p; 2160p rejected)',
+    'SD': 'below 720p only',
+    'Any': 'anything (prefers highest)',
+}
+
 async def start(manager):
     """
     Called when the manager is starting.
@@ -31,13 +49,7 @@ async def search(series, episodes, skip=[], loop=None):
         # air date.
         earliest = (earliest - timedelta(days=10)).strftime('%Y-%m-%d')
 
-    # For each quality type, this is the minimum MB per min, and ideal MB per min
-    mb_per_min = {
-        'UHD': (30, 120),
-        'HD': (10, 25),
-        'SD': (2, 8),
-        'Any': (2, 20),
-    }[series.cfg.quality or 'Any']
+    mb_per_min = QUALITY_SIZES[str(series.cfg.quality) or 'Any']
     runtime = series.runtime or 30
     min_size_bytes = runtime * mb_per_min[0] * 1024 * 1024
     ideal_size_bytes = runtime * mb_per_min[1] * 1024 * 1024

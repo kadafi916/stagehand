@@ -393,6 +393,7 @@
             <div class="settings-field" style="flex:1; min-width:200px">
                 <label>Quality</label>
                 <div class="settings-radio-group" id="show-quality-group"></div>
+                <div id="show-quality-hint" class="text-dim" style="font-size:11px; margin-top:5px"></div>
             </div>
             <div class="settings-field" style="flex:1; min-width:200px">
                 <label>Episode Identifier</label>
@@ -1073,14 +1074,31 @@ function loadHistory() {
         var $tbody = $('<tbody>');
         recs.forEach(function(r) {
             var when = (r.ts || '').replace('T', ' ').slice(0, 16);
-            var $tr = $('<tr>');
+            var $tr = $('<tr>').css('cursor', 'pointer').attr('title', 'Click for details');
             $tr.append($('<td>').css('white-space', 'nowrap').text(when));
-            $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + r.show_id).css('color', '#2185d0').text(r.show)));
+            $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + r.show_id).css('color', '#2185d0')
+                .on('click', function(e) { e.stopPropagation(); }).text(r.show)));
             $tr.append($('<td>').text(r.code));
             $tr.append($('<td>').text(r.title));
             $tr.append($('<td>').text(r.quality));
             $tr.append($('<td>').css('white-space', 'nowrap').text(fmtSize(r.size)));
-            $tbody.append($tr);
+            var $dtr = $('<tr>').hide();
+            var $dtd = $('<td>').attr('colspan', 6).css({ fontSize: '12px', lineHeight: '1.7' });
+            function drow(label, value) {
+                if (!value) return;
+                $dtd.append($('<div>')
+                    .append($('<span>').addClass('text-muted').css({ display: 'inline-block', width: '110px' }).text(label))
+                    .append($('<span>').css('word-break', 'break-all').text(value)));
+            }
+            drow('Original file', r.original_filename);
+            drow('Saved as', r.filename !== r.original_filename ? r.filename : null);
+            drow('Picked because', r.reason);
+            drow('Candidates', r.candidates ? 'chosen from ' + r.candidates + ' result' + (r.candidates !== 1 ? 's' : '') : null);
+            drow('Source', r.searcher);
+            if (!$dtd.children().length) drow('Details', 'Not recorded (downloaded before 0.4.21)');
+            $dtr.append($dtd);
+            $tr.on('click', function() { $dtr.toggle(); });
+            $tbody.append($tr).append($dtr);
         });
         $tbl.append($tbody);
         $c.append($tbl);
@@ -1484,6 +1502,18 @@ function renderShowDetail(show) {
         $qg.append($('<input>').attr({ type:'radio', name:'show-quality', id:uid, value:q }).prop('checked', q === show.quality));
         $qg.append($('<label>').attr('for', uid).text(q));
     });
+
+    // Explain what the selected tier concretely means for this show's runtime.
+    function updateQualityHint() {
+        var tier = $('input[name="show-quality"]:checked').val();
+        var info = (show.quality_info || {})[tier];
+        if (!info) { $('#show-quality-hint').text(''); return; }
+        $('#show-quality-hint').text(
+            'Accepts ' + info.resolutions + ' · rejects files under ' + fmtSize(info.min_mb * 1048576) +
+            ' · ideal ~' + fmtSize(info.ideal_mb * 1048576) + ' (based on ' + info.runtime + ' min runtime)');
+    }
+    updateQualityHint();
+    $('#tv-show-detail').off('change.qualhint').on('change.qualhint', 'input[name="show-quality"]', updateQualityHint);
 
     // Identifier radios
     var identLabels = { epcode: 'Episode Code', date: 'Air Date' };
