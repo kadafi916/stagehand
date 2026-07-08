@@ -246,6 +246,13 @@
         .bar-chart .bar:hover { background: #1678c2; }
         .hbar { background: var(--hover-strong); border-radius: 3px; height: 10px; overflow: hidden; }
         .hbar .fill { background: #21ba45; height: 100%; }
+
+        /* Upcoming — one table per day; fixed layout keeps columns aligned across tables */
+        .upcoming-table { width: 100%; table-layout: fixed; }
+        .upcoming-table td:nth-child(1) { width: 5.5em; }
+        .upcoming-table td:nth-child(2) { width: 30%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .upcoming-table td:nth-child(3) { width: 6em; }
+        .upcoming-table td:nth-child(4) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         @media (max-width: 450px) {
             #menu-search { display: none; }
         }
@@ -1017,15 +1024,15 @@ function loadUpcoming() {
                     label = d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' });
                 }
                 $c.append($('<div>').addClass('week-header').text(label));
-                $tbl = $('<table>').addClass('ui table');
+                $tbl = $('<table>').addClass('ui table upcoming-table');
                 $c.append($tbl);
             }
             var $tr = $('<tr>');
             if (ep.ignored) $tr.css('opacity', 0.45);
-            $tr.append($('<td>').css('width', '5em').text(ep.airtime || ''));
-            $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + ep.show_id).css('color', '#2185d0').text(ep.show_name)));
-            $tr.append($('<td>').css('width', '6em').text(ep.code));
-            $tr.append($('<td>').text(ep.name + (ep.ignored ? ' (ignored)' : '')));
+            $tr.append($('<td>').text(ep.airtime || ''));
+            $tr.append($('<td>').append($('<a>').attr('href', '#/tv/' + ep.show_id).css('color', '#2185d0').attr('title', ep.show_name).text(ep.show_name)));
+            $tr.append($('<td>').text(ep.code));
+            $tr.append($('<td>').attr('title', ep.name).text(ep.name + (ep.ignored ? ' (ignored)' : '')));
             $tbl.append($tr);
         });
     });
