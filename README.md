@@ -223,6 +223,11 @@ Example automation — announce a download on a media player:
 ```yaml
 automation:
   - alias: Stagehand episode downloaded
+    # queued is important: parallel downloads finish together and send
+    # webhooks milliseconds apart. The default mode (single) silently drops
+    # triggers that arrive while a previous run is still executing.
+    mode: queued
+    max: 10
     triggers:
       - trigger: webhook
         webhook_id: stagehand
