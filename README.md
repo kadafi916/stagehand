@@ -250,12 +250,13 @@ For a typical 42-minute HD show that means: files under ~420 MB are rejected, an
 Candidate results are then ranked by comparing these criteria **in order** — a result that wins on an earlier criterion wins outright, and later criteria only break ties:
 
 1. **Filename match** — the episode code + show title found in the actual filename beats a match only in the post subject
-2. **Container** — mkv > mp4 > avi; wmv/mpg/ts/rar are disqualified
-3. **Resolution** — 2160p > 1080p > 720p (within what the tier allows)
-4. **Codec/audio** — resolution-aware: x264 preferred for HD (device compatibility), x265 preferred for 2160p (the 4K standard); surround audio (DDP/EAC-3/AC3/TrueHD/DTS) is a bonus; AAC is penalized
-5. **Size** — results between 0.6× and 4× of ideal are "in range" and bigger wins; out-of-range results rank below in-range ones, closest to ideal first
-6. **Release modifiers** — blu-ray > proper > repack > web-dl, etc.
-7. **Post date** — newer wins
+2. **No audio description** — "with Audio Description" releases rank below every clean alternative regardless of resolution or size, and are only used when nothing else is available
+3. **Container** — mkv > mp4 > avi; wmv/mpg/ts/rar are disqualified
+4. **Resolution** — 2160p > 1080p > 720p (within what the tier allows)
+5. **Codec/audio** — resolution-aware: x264 preferred for HD (device compatibility), x265 preferred for 2160p (the 4K standard); surround audio (DDP/EAC-3/AC3/TrueHD/DTS) is a bonus; AAC is penalized
+6. **Size** — results between 0.6× and 4× of ideal are "in range" and bigger wins; out-of-range results rank below in-range ones, closest to ideal first
+7. **Release modifiers** — blu-ray > proper > repack > web-dl, etc.
+8. **Post date** — newer wins
 
 Every search logs its ranked results with the reasons, e.g.:
 

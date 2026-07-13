@@ -61,12 +61,13 @@ class SearcherBase:
     # Result ranking tables.  Results are sorted by comparing score vectors
     # built in this priority order (see _score_result):
     #   1. filename match (vs. subject-only match)
-    #   2. container extension
-    #   3. resolution
-    #   4. A/V format (codec preference is resolution-aware)
-    #   5. size relative to the quality tier's ideal
-    #   6. release modifiers (proper, repack, source group...)
-    #   7. post date
+    #   2. no audio description (AD releases rank below everything else)
+    #   3. container extension
+    #   4. resolution
+    #   5. A/V format (codec preference is resolution-aware)
+    #   6. size relative to the quality tier's ideal
+    #   7. release modifiers (proper, repack, source group...)
+    #   8. post date
     RESULT_EXTS = {'mkv': 3, 'mp4': 2, 'avi': 1}
     RESULT_BAD_EXTS = ('wmv', 'mpg', 'ts', 'rar', r'r\d\d')
     RESULT_RES = {'2160p': 3, '1080p': 2, '720p': 1}
@@ -97,7 +98,13 @@ class SearcherBase:
         if not match:
             labels.append('subject match only')
 
-        # 2. Container extension.
+        # 2. Audio-description releases rank below everything else — they are
+        # only used when no clean alternative exists.
+        no_ad = 0 if re.search(r'audio[-. _]description', name) else 1
+        if not no_ad:
+            labels.append('audio description')
+
+        # 3. Container extension.
         ext_score = 0
         for pattern in self.RESULT_BAD_EXTS:
             if re.match(pattern + '$', ext):
@@ -108,7 +115,7 @@ class SearcherBase:
                 ext_score = score
                 labels.append(e)
 
-        # 3. Resolution.
+        # 4. Resolution.
         res_score = 0
         res_label = None
         for r, score in self.RESULT_RES.items():
@@ -116,7 +123,7 @@ class SearcherBase:
                 res_score, res_label = score, r
         labels.append(res_label or 'unknown resolution')
 
-        # 4. A/V format.  Codec preference is resolution-aware: x265 preferred
+        # 5. A/V format.  Codec preference is resolution-aware: x265 preferred
         # for 2160p (HEVC is the 4K standard), x264 preferred otherwise
         # (better device compatibility).
         v265 = bool(find(r'[xh]\.?265'))
@@ -137,7 +144,7 @@ class SearcherBase:
             av_score = 8
             labels.append('surround audio')
 
-        # 5. Size relative to ideal for the quality tier.  Results within
+        # 6. Size relative to ideal for the quality tier.  Results within
         # 0.6x-4x of ideal are acceptable and bigger is better; outside that
         # band, closer to ideal is better (and always ranks below in-band).
         if ideal_size and result.size:
@@ -151,17 +158,17 @@ class SearcherBase:
         else:
             size_key = (0, 0)
 
-        # 6. Release modifiers.
+        # 7. Release modifiers.
         mod_score = 0
         for pattern, score in self.RESULT_MODS.items():
             if find(pattern):
                 mod_score = score
                 labels.append(pattern.replace('-?', '-').replace('?', ''))
 
-        # 7. Post date (newer preferred).
+        # 8. Post date (newer preferred).
         ts = result.date.timestamp() if result.date else 0
 
-        key = (match, ext_score, res_score, av_score, size_key, mod_score, ts)
+        key = (match, no_ad, ext_score, res_score, av_score, size_key, mod_score, ts)
         return key, labels
 
 
