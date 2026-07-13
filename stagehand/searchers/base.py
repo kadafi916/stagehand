@@ -73,7 +73,7 @@ class SearcherBase:
     RESULT_RES = {'2160p': 3, '1080p': 2, '720p': 1}
     RESULT_MODS = {r'blu-?ray': 10, 'proper': 9, r're-?pack': 7, 'immerse': 6,
                    'dimension': 5, 'nlsubs': 4, 'web-?dl': 3}
-    GOOD_AUDIO = r'(ac-?3|e-?ac-?3|ddp[\d.]*|truehd|dts|dd5\.?1)'
+    GOOD_AUDIO = r'(ac-?3|e-?ac-?3|ddp[\d.]*|truehd|dts|dd5\.?1|atmos)'
 
     def _score_result(self, ep, ideal_size, result):
         """
@@ -129,6 +129,7 @@ class SearcherBase:
         v265 = bool(find(r'[xh]\.?265'))
         v264 = bool(find(r'[xh]\.?264'))
         good_audio = bool(find(self.GOOD_AUDIO))
+        atmos = bool(find(r'atmos'))
         aac = bool(find(r'aac\.?2?'))
         av_score = 0
         if aac:
@@ -137,12 +138,13 @@ class SearcherBase:
         elif v264 or v265:
             prefer265 = res_label == '2160p'
             preferred = v265 if prefer265 else v264
-            av_score = (11 if preferred else 9) + (1 if good_audio else 0)
+            # Atmos ranks a notch above plain surround within the same codec.
+            av_score = (11 if preferred else 8) + (2 if atmos else 1 if good_audio else 0)
             labels.append(('x265' if v265 else 'x264') +
-                          ('+surround audio' if good_audio else ''))
+                          ('+Atmos' if atmos else '+surround audio' if good_audio else ''))
         elif good_audio:
-            av_score = 8
-            labels.append('surround audio')
+            av_score = 7
+            labels.append('Atmos' if atmos else 'surround audio')
 
         # 6. Size relative to ideal for the quality tier.  Results within
         # 0.6x-4x of ideal are acceptable and bigger is better; outside that
