@@ -261,7 +261,7 @@ class Episode:
         # TODO: timezone
         airdatetime = self.airdatetime
         if airdatetime:
-            return datetime.now() >= airdatetime + timedelta(minutes=self.series.runtime)
+            return datetime.now() >= airdatetime + timedelta(minutes=self.series.runtime or 30)
         else:
             return False
 
