@@ -34,6 +34,24 @@ docker run -d -p 8088:8088 \
 
 Open **http://localhost:8088** in your browser.
 
+### Updating (docker compose)
+
+A `docker-compose.yml` is included as an alternative to the raw `docker run` above. Copy
+`.env.example` to `.env` and fill in your paths, then:
+
+```bash
+git pull
+docker compose up -d --build
+```
+
+`up -d` only recreates the container if the image or config actually changed, and since the
+image comes from a local `build:` (not a registry `image:`), it never attempts to pull anything —
+this is the important bit if you're managing the container through a Portainer-style UI (Dockhand,
+Portainer, etc.): rebuilding the image with `docker build` does **not** update an already-running
+container by itself, since a container is pinned to the specific image ID it was created from.
+Restarting that container just restarts the old code; only recreating it (`docker compose up -d`,
+or your UI's "recreate"/"redeploy" action — not "restart") picks up a freshly built image.
+
 ---
 
 ## Configuration

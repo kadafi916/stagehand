@@ -7,3 +7,4 @@ src/__init__.py
 stagehand.egg-info/
 ChangeLog
 MANIFEST
+.env

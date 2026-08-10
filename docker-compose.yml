@@ -1,0 +1,10 @@
+services:
+  stagehand:
+    build: .
+    container_name: ${CONTAINER_NAME:-stagehand}
+    restart: unless-stopped
+    ports:
+      - "${HOST_PORT:-8088}:8088"
+    volumes:
+      - ${CONFIG_DIR:-~/.config/stagehand}:/root/.config/stagehand
+      - ${TV_DIR:-/path/to/tv}:/tv
