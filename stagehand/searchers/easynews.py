@@ -4,8 +4,15 @@ import urllib.parse
 import logging
 import re
 import asyncio
+import warnings
 import aiohttp
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
+
+# The Easynews RSS feed is XML, but we deliberately parse it with the
+# html.parser backend (no extra lxml dependency needed, and it works fine
+# since RSS tags are already lowercase). Silence the resulting warning
+# rather than adding lxml just to satisfy it.
+warnings.filterwarnings('ignore', category=XMLParsedAsHTMLWarning)
 
 from ..config import config
 from ..toolbox import dateutils
