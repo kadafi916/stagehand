@@ -8,3 +8,8 @@ services:
     volumes:
       - ${CONFIG_DIR:-~/.config/stagehand}:/root/.config/stagehand
       - ${TV_DIR:-/path/to/tv}:/tv
+    deploy:
+      resources:
+        limits:
+          memory: ${MEM_LIMIT:-512M}
+          cpus: "${CPU_LIMIT:-1.0}"
