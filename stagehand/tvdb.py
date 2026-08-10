@@ -1307,6 +1307,12 @@ class TVDB(db.Database):
         if preferred not in pseries:
             raise ProviderError('provider %s does not have series, unable to set as preferred' % preferred.NAME)
         self._update_db_with_pseries(pseries, preferred)
+        # Commit now rather than leaving this open indefinitely: changes were
+        # previously only committed at graceful shutdown, so the DB sat in one
+        # ever-growing uncommitted transaction for the process's entire
+        # lifetime (slow under I/O contention, and all of it is lost on an
+        # ungraceful restart).
+        self.commit()
         if completed:
             self._clear_update_task_by_id(provider, id)
             completed.emit()

@@ -349,6 +349,11 @@ class Manager:
         else:
             found = await self._search_and_retrieve_needed_episodes(need)
 
+        # Bound how long changes (episode status, retrieval results, etc. from
+        # this cycle) can sit uncommitted -- see the matching commit() in
+        # tvdb.py's _do_update_series for why this matters.
+        self.tvdb.commit()
+
         if reschedule:
             self._schedule_next_episode_check()
         return need, found
