@@ -213,15 +213,26 @@ class SearcherBase:
             # episode title happens to contain that word (e.g. the show
             # "From" matching "High.Castle.S04E10.Fire.from.the.Gods").
             prefix = name[:m.start()]
-            title = ep.series.cfg.search_string or ep.series.name
-            title = self.clean_title(title, apostrophe=self.CLEAN_APOSTROPHE_REGEXP)
+            raw_title = ep.series.cfg.search_string or ep.series.name
+            title = self.clean_title(raw_title, apostrophe=self.CLEAN_APOSTROPHE_REGEXP)
             # Ensure each word in the title matches, but don't require them to be in
             # the right order.
             for word in title.split():
                 if not re.search(r'(\b|_)%s(\b|_)' % word, prefix, re.I):
                     break
             else:
-                return True
+                # All title words were found in the prefix, but that alone isn't
+                # sufficient: a short or generic title can also occur as a
+                # substring of a completely unrelated show's (longer) title,
+                # e.g. the show "Furious" matching
+                # "Fast.and.Furious.Spy.Racers.S01E05...". Require the prefix
+                # to consist of *only* the title's words (in any order) and
+                # nothing else, so an unrelated show's extra words disqualify
+                # the match.
+                title_words = set(self.clean_title(raw_title, apostrophe=self.CLEAN_APOSTROPHE_REMOVE).lower().split())
+                prefix_words = set(self.clean_title(prefix, apostrophe=self.CLEAN_APOSTROPHE_REMOVE).lower().split())
+                if not (prefix_words - title_words):
+                    return True
         return False
 
 
