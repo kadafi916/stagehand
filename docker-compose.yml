@@ -12,4 +12,10 @@ services:
       resources:
         limits:
           memory: ${MEM_LIMIT:-512M}
-          cpus: "${CPU_LIMIT:-1.0}"
+    # A hard CPU quota (deploy.resources.limits.cpus) needs CFS bandwidth
+    # control, which Synology DSM kernels typically don't have compiled in.
+    # cpu_shares is a relative priority instead of a hard cap -- it doesn't
+    # need that kernel feature, and still keeps this from crowding out other
+    # containers under contention (default share weight is 1024; lower value
+    # here means lower priority).
+    cpu_shares: ${CPU_SHARES:-512}
