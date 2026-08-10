@@ -18,6 +18,7 @@ from .utils import fixsep
 from .searchers import SearcherError
 from .retrievers import RetrieverError, RetrieverSoftError, RetrieverHardError, RetrieverAborted, RetrieverAbortedHard, RetrieverAbortedSoft
 from .notifiers import NotifierError
+from .providers.base import ProviderError
 
 log = logging.getLogger('stagehand.manager')
 
@@ -181,7 +182,8 @@ class Manager:
             series = await self._add_series_to_db(id, fast=True)
             if not self.tvdb.get_config_for_series(id, series):
                 identifier = 'date' if series.has_genre('talk show', 'news') else 'epcode'
-                config.series.append(config.series(id=id, path=fixsep(series.name), identifier=identifier))
+                config.series.append(config.series(id=id, provider=series.provider.NAME,
+                                                    path=fixsep(series.name), identifier=identifier))
                 config.save(self.paths.config)
         return series
 
@@ -236,6 +238,15 @@ class Manager:
                     await series.change_provider(cfg.provider)
                 except ValueError as e:
                     log.error('invalid config: %s', e.args[0])
+                except ProviderError as e:
+                    # The configured provider doesn't have this series (e.g.
+                    # TheTVDB has no match for it).  This must not abort the
+                    # whole config load -- reconcile the config to whatever
+                    # provider the series is actually on, so we don't retry
+                    # (and fail) the same switch on every future startup.
+                    log.error('could not switch %s to provider %s: %s; staying on %s',
+                              cfg.id, cfg.provider, e, series.provider.NAME)
+                    cfg.provider = series.provider.NAME
 
             # Add all ids for this series to the seen list.
             seen.update(series.ids)
