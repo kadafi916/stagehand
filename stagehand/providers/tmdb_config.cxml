@@ -1,0 +1,12 @@
+<?xml version="1.0"?>
+<config>
+    <desc lang="en">The Movie Database (TMDB) metadata provider</desc>
+    <var name="apikey" type="str">
+        <desc>
+            Your TMDB API key (v3 auth). Free to request at
+            https://www.themoviedb.org/settings/api -- Stagehand can't ship a
+            shared key like it does for TheTVDB, since TMDB requires each
+            application to register its own.
+        </desc>
+    </var>
+</config>

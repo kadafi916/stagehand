@@ -10,7 +10,7 @@ Stagehand is a TV series manager that automatically downloads new episodes and p
 
 - Single-page web UI — no page reloads, hash-based routing
 - Dark and light themes — toggle with the sun/moon icon in the nav bar (persisted per browser)
-- Multiple metadata providers per series (TheTVDB and TVmaze)
+- Multiple metadata providers per series (TheTVDB, TVmaze, and TMDB)
 - Easynews HTTP global search (enabled by default)
 - Per-episode and per-season status management
 - Live log streaming in the browser
@@ -50,6 +50,20 @@ Alternatively, add them directly to the config file:
 searchers.easynews.username = your_username
 searchers.easynews.password = your_password
 ```
+
+### TMDB metadata provider
+
+Shows are searched across TheTVDB, TVmaze, and TMDB (themoviedb.org) at once, so add results from
+whichever providers are configured and reachable — useful if one provider is having problems, since
+the others still work. TMDB requires a free API key (unlike TheTVDB, Stagehand can't ship a shared
+key for it — TMDB requires each application to register its own):
+
+1. Create an account at [themoviedb.org](https://www.themoviedb.org) and request an API key at
+   **Settings → API**.
+2. Paste it into **Configure → Settings → TMDB**.
+
+Without a key configured, TMDB search/updates are simply skipped — TheTVDB and TVmaze continue to
+work as before.
 
 ---
 

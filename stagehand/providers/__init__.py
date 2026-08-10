@@ -6,7 +6,7 @@ from .base import ProviderError
 
 log = logging.getLogger('stagehand.providers')
 
-plugins, broken_plugins = load_plugins('providers', ['thetvdb', 'tvmaze'])
+plugins, broken_plugins = load_plugins('providers', ['thetvdb', 'tvmaze', 'tmdb'])
 
 async def start(manager):
     """

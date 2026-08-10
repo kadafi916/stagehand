@@ -245,6 +245,7 @@ def get_general_settings():
         'easynews_username':  str(config.searchers.easynews.username),
         'easynews_password':  str(config.searchers.easynews.password),
         'easynews_enabled':   'easynews' in enabled,
+        'tmdb_apikey':        str(config.providers.tmdb.apikey),
     }
 
 @web.post('/api/settings/general')
@@ -273,6 +274,7 @@ def set_general_settings():
     _set('naming.episode_format',   d.get('episode_format'))
     _set('web.username',            d.get('web_username'))
     _set('web.password',            d.get('web_password'))
+    _set('providers.tmdb.apikey',   d.get('tmdb_apikey'))
 
     # Easynews credentials
     en_user = d.get('easynews_username')

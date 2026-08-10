@@ -249,11 +249,16 @@
         </list>
     </group>
 
+    <group name='providers'>
+        <desc>Metadata providers (TheTVDB, TVmaze, TMDB, etc).</desc>
+    </group>
+
     <code>
         # Force plugins to load and attach their config objects.
         from . import searchers
         from . import retrievers
         from . import notifiers
+        from . import providers
     </code>
 </config>
 

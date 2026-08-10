@@ -682,6 +682,25 @@
             </div>
         </div>
 
+        <!-- TMDB metadata provider -->
+        <div class="settings-card">
+            <h3>TMDB</h3>
+            <p class="text-muted" style="font-size:13px; margin-top:0">
+                Adds themoviedb.org as a metadata provider alongside TheTVDB and TVmaze — used when
+                searching for and adding new shows. Requires a free API key from
+                <a href="https://www.themoviedb.org/settings/api" target="_blank" rel="noopener">themoviedb.org/settings/api</a>.
+            </p>
+            <div class="settings-field">
+                <label>API Key</label>
+                <input type="text" id="cfg-tmdb-key" autocomplete="off" style="max-width:340px">
+            </div>
+            <div style="display:flex; align-items:center; gap:0.75rem; margin-top:0.25rem">
+                <button class="ui button" id="btn-save-tmdb">Save</button>
+                <button class="ui button" id="btn-clear-tmdb">Clear</button>
+                <span id="tmdb-status" style="font-size:12px; color:#4caf50"></span>
+            </div>
+        </div>
+
         <!-- Home Assistant notifier -->
         <div class="settings-card">
             <h3>Home Assistant</h3>
@@ -2014,6 +2033,7 @@ $(document).ready(function() {
                 $('#cfg-web-pass').val(d.web_password || '');
                 $('#cfg-en-user').val(d.easynews_username || '');
                 $('#cfg-en-pass').val(d.easynews_password || '');
+                $('#cfg-tmdb-key').val(d.tmdb_apikey || '');
                 buildRadioGroup($('#cfg-loglevel-group'), 'cfg-loglevel', LOGLEVEL_OPTS, LOGLEVEL_LABELS, d.loglevel || 'info');
                 $('#cfg-rename').prop('checked', d.rename !== false);
                 $('#cfg-naming-fields').toggle(d.rename !== false);
@@ -2124,6 +2144,20 @@ $(document).ready(function() {
             credSave('#cfg-en-user', '#cfg-en-pass', '#easynews-status', function() {
                 return { easynews_username: '', easynews_password: '' };
             });
+        });
+
+        function tmdbSave(key) {
+            $.ajax({ url: ROOT + '/api/settings/general', method: 'POST',
+                contentType: 'application/json', data: JSON.stringify({ tmdb_apikey: key }) })
+                .done(function() { showSectionStatus('#tmdb-status', true, 'Saved'); })
+                .fail(function() { showSectionStatus('#tmdb-status', false, 'Save failed'); });
+        }
+        $('#btn-save-tmdb').on('click', function() {
+            tmdbSave($('#cfg-tmdb-key').val());
+        });
+        $('#btn-clear-tmdb').on('click', function() {
+            $('#cfg-tmdb-key').val('');
+            tmdbSave('');
         });
 
         // Notifier settings (Home Assistant / Email / Kodi)

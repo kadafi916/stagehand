@@ -220,6 +220,11 @@ config = Config(schema=[
     ]
   ),
 
+  Group(name='providers', desc='Metadata providers (TheTVDB, TVmaze, TMDB, etc).', schema=[
+
+    ]
+  ),
+
   ]
 , module='stagehand.config')
 
@@ -227,4 +232,5 @@ config = Config(schema=[
 from . import searchers
 from . import retrievers
 from . import notifiers
+from . import providers
 

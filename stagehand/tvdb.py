@@ -1457,12 +1457,17 @@ class TVDB(db.Database):
                 return series
 
 
-    async def search(self, name, provider='thetvdb'):
+    async def search(self, name, provider=None):
         """
-        Search for a series
+        Search for a series.
+
+        If provider is unspecified, all providers are searched in parallel
+        and the results merged; a provider that errors out (e.g. TMDB with
+        no API key configured, or an upstream outage) is logged and skipped
+        rather than failing the whole search.
         """
-        which = [self.providers[provider]]
-        results = await self._invoke_providers('search', name, which=which, bubble=True)
+        which = [self.providers[provider]] if provider else self.providers.values()
+        results = await self._invoke_providers('search', name, which=which, bubble=provider is not None)
         return list(itertools.chain.from_iterable(l for p, l in results))
 
 
