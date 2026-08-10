@@ -58,7 +58,15 @@ class Manager:
         Starts the Stagehand manager, which starts all plugins and
         schedules tasks for
         """
-        await self._load_config()
+        try:
+            await self._load_config()
+        except Exception:
+            # Do not let a failure here (e.g. a single bad series) prevent
+            # everything below -- in particular the retrieve queue processor
+            # -- from starting.  Losing config loading is bad; silently
+            # disabling all downloads for the rest of the session because of
+            # it is worse.
+            log.exception('failed to load config on startup; continuing startup anyway')
 
         # TODO: randomize time, twice a day
         self.loop.call_soon(asyncio.ensure_future, self._check_update_tvdb())
