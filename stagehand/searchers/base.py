@@ -61,13 +61,13 @@ class SearcherBase:
     # Result ranking tables.  Results are sorted by comparing score vectors
     # built in this priority order (see _score_result):
     #   1. filename match (vs. subject-only match)
-    #   2. no audio description (AD releases rank below everything else)
-    #   3. container extension
-    #   4. resolution
-    #   5. A/V format (codec preference is resolution-aware)
-    #   6. size relative to the quality tier's ideal
-    #   7. release modifiers (proper, repack, source group...)
-    #   8. post date
+    #   2. container extension
+    #   3. resolution
+    #   4. A/V format (codec preference is resolution-aware)
+    #   5. size relative to the quality tier's ideal
+    #   6. release modifiers (proper, repack, source group...)
+    #   7. post date
+    # (audio-description releases are disqualified outright, not ranked)
     RESULT_EXTS = {'mkv': 3, 'mp4': 2, 'avi': 1}
     RESULT_BAD_EXTS = ('wmv', 'mpg', 'ts', 'rar', r'r\d\d')
     RESULT_RES = {'2160p': 3, '1080p': 2, '720p': 1}
@@ -98,10 +98,11 @@ class SearcherBase:
         if not match:
             labels.append('subject match only')
 
-        # 2. Audio-description releases rank below everything else — they are
-        # only used when no clean alternative exists.
-        no_ad = 0 if re.search(r'audio[-. _]description', name) else 1
-        if not no_ad:
+        # 2. Audio-description releases are disqualified outright -- never
+        # used, even if it's the only result available for an episode.
+        if re.search(r'audio[-. _]description', name):
+            result.disqualified = True
+            result.disqualify_reason = 'audio description'
             labels.append('audio description')
 
         # 3. Container extension.
@@ -170,7 +171,7 @@ class SearcherBase:
         # 8. Post date (newer preferred).
         ts = result.date.timestamp() if result.date else 0
 
-        key = (match, no_ad, ext_score, res_score, av_score, size_key, mod_score, ts)
+        key = (match, ext_score, res_score, av_score, size_key, mod_score, ts)
         return key, labels
 
 
