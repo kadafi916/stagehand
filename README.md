@@ -69,6 +69,10 @@ searchers.easynews.username = your_username
 searchers.easynews.password = your_password
 ```
 
+Search uses Easynews' newer 2.0 JSON API by default, since the legacy `global5` RSS search has been
+unreliable. If Easynews fixes `global5` and you want its more precise server-side episode/size
+filtering back, set `searchers.easynews.disable_global5 = False`.
+
 ### TMDB metadata provider
 
 Shows are searched across TheTVDB, TVmaze, and TMDB (themoviedb.org) at once, so add results from

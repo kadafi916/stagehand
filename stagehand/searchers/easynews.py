@@ -89,7 +89,7 @@ class Searcher(SearcherBase):
         res = ''
 
         results = []
-        use_v2 = False
+        use_v2 = bool(modconfig.disable_global5)
         for i in range(0, len(episodes), 10):
             batch = episodes[i:i+10]
             codelist = [code for episode in batch \
@@ -99,26 +99,34 @@ class Searcher(SearcherBase):
             if not use_v2:
                 log.debug('searching for %d episodes, minimum size %s and res %s, keywords=%s subject=%s',
                           len(batch), size, res or 'any', title, codes)
-                rss = await self._search_global5(title, codes, size, date or '', res)
-                soup = BeautifulSoup(rss, 'html.parser')
-                items = soup.find_all('item')
-                if not items:
-                    # global5 has been known to return a well-formed but
-                    # entirely empty feed rather than an HTTP error when it's
-                    # down, so this is the signal we use to switch over.
-                    log.warning('global5 returned no results at all; falling back to v2 search API')
+                try:
+                    rss = await self._search_global5(title, codes, size, date or '', res)
+                except SearcherError as e:
+                    # global5 has been unreliable; rather than aborting the
+                    # whole search, fall back to the v2 search API for this
+                    # and all subsequent batches.
+                    log.warning('global5 search failed (%s); falling back to v2 search API', e)
                     use_v2 = True
                 else:
-                    for item in items:
-                        result = SearchResult(self)
-                        urlpath = urllib.parse.urlparse(item.enclosure['url']).path
-                        result.filename = urllib.parse.unquote(os.path.split(urlpath)[-1])
-                        result.size = self._parse_hsize(item.enclosure['length'])
-                        result.date = dateutils.from_rfc822(item.pubdate.contents[0])
-                        result.subject = ''.join(item.title.contents)
-                        result.url = item.enclosure['url']
-                        # TODO: parse out newsgroup
-                        results.append(result)
+                    soup = BeautifulSoup(rss, 'html.parser')
+                    items = soup.find_all('item')
+                    if not items:
+                        # global5 has been known to return a well-formed but
+                        # entirely empty feed rather than an HTTP error when it's
+                        # down, so this is the signal we use to switch over.
+                        log.warning('global5 returned no results at all; falling back to v2 search API')
+                        use_v2 = True
+                    else:
+                        for item in items:
+                            result = SearchResult(self)
+                            urlpath = urllib.parse.urlparse(item.enclosure['url']).path
+                            result.filename = urllib.parse.unquote(os.path.split(urlpath)[-1])
+                            result.size = self._parse_hsize(item.enclosure['length'])
+                            result.date = dateutils.from_rfc822(item.pubdate.contents[0])
+                            result.subject = ''.join(item.title.contents)
+                            result.url = item.enclosure['url']
+                            # TODO: parse out newsgroup
+                            results.append(result)
 
             if use_v2:
                 # v2 has no per-batch code filtering, so a single query
