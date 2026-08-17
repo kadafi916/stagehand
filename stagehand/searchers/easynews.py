@@ -95,6 +95,18 @@ class Searcher(SearcherBase):
             codelist = [code for episode in batch \
                              for code in self._get_episode_codes_regexp_list([episode])]
             codes = '|'.join(codelist)
+            # v2's sbj= isn't a real regex engine like global5's -- it gets
+            # fed into a Solr query parser where a hyphenated date term
+            # (e.g. "2026-08-12") in the OR alternation gets its hyphens
+            # interpreted as NOT-operators, corrupting the whole query and
+            # silently dropping the episode we actually want (confirmed live:
+            # "s05e10|5x10" correctly matches, but adding "|2026-08-12"
+            # collapses the result set to unrelated episodes). The dotted
+            # date form is harmless but adds nothing a scene-release
+            # filename wouldn't already match via the SxxEyy/AxB codes, so
+            # just exclude dates entirely from what we send v2.
+            codes_v2 = '|'.join(code for episode in batch \
+                                      for code in self._get_episode_codes_regexp_list([episode], dates=False))
 
             if not use_v2:
                 log.debug('searching for %d episodes, minimum size %s and res %s, keywords=%s subject=%s',
@@ -135,8 +147,8 @@ class Searcher(SearcherBase):
                 # episodes) don't crowd the episodes we want out of the
                 # (server-capped) result page.
                 log.debug('searching for %d episodes via v2 search API, minimum size %s, keywords=%s subject=%s',
-                          len(batch), size, title, codes)
-                results.extend(await self._search_v2(title, codes, size))
+                          len(batch), size, title, codes_v2)
+                results.extend(await self._search_v2(title, codes_v2, size))
 
         return {None: results}
 
@@ -165,7 +177,14 @@ class Searcher(SearcherBase):
         if codes:
             # Confirmed against the live API: same server-side subject
             # substring filter global5 used (matches against post subject,
-            # pipe-separated regexp alternation of episode codes).
+            # pipe-separated regexp alternation of episode codes). Unlike
+            # global5's real regex engine, this feeds into a Solr query
+            # parser where a hyphenated date term (e.g. "2026-08-12") in the
+            # alternation gets its hyphens read as NOT-operators and silently
+            # corrupts the whole query (confirmed live). Strip any such term
+            # defensively, whatever the caller passed in.
+            codes = '|'.join(c for c in codes.split('|') if not re.match(r'^\d{4}-\d{2}-\d{2}$', c))
+        if codes:
             params['sbj'] = codes
         if size:
             # Confirmed against the live API: same min-size floor global5
