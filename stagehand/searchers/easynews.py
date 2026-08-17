@@ -129,16 +129,19 @@ class Searcher(SearcherBase):
                             results.append(result)
 
             if use_v2:
-                # v2 has no per-batch code filtering, so a single query
-                # covers every episode we're looking for in this show.
-                log.debug('searching for %s via v2 search API', title)
-                results.extend(await self._search_v2(title))
-                break
+                # As with global5, restrict each query to this batch's
+                # episode codes and the minimum size, so a popular/long-
+                # running show's irrelevant results (season packs, other
+                # episodes) don't crowd the episodes we want out of the
+                # (server-capped) result page.
+                log.debug('searching for %d episodes via v2 search API, minimum size %s, keywords=%s subject=%s',
+                          len(batch), size, title, codes)
+                results.extend(await self._search_v2(title, codes, size))
 
         return {None: results}
 
 
-    async def _search_v2(self, title):
+    async def _search_v2(self, title, codes='', size=''):
         if not modconfig.username or not modconfig.password:
             raise SearcherError('Easynews credentials not configured')
 
@@ -159,6 +162,15 @@ class Searcher(SearcherBase):
             'safeO': '0',
             'gps': title,
         }
+        if codes:
+            # Confirmed against the live API: same server-side subject
+            # substring filter global5 used (matches against post subject,
+            # pipe-separated regexp alternation of episode codes).
+            params['sbj'] = codes
+        if size:
+            # Confirmed against the live API: same min-size floor global5
+            # used (e.g. "700M").
+            params['b1'] = size
         url = Searcher.URL_V2 + '?' + urllib.parse.urlencode(params)
         global last_auth_ok
         status, data = await download(url, retry=modconfig.retries,
